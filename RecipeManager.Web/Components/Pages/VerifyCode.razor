@@ -1,0 +1,300 @@
+@page "/verify-code"
+@attribute [AllowAnonymous]
+@inject AuthApiClient AuthApiClient
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Verify Code - RecipeManager</PageTitle>
+
+<div class="verify-container">
+    <div class="verify-card">
+        <div class="verify-header">
+            <h1>Enter Verification Code</h1>
+            <p class="verify-subtitle">
+                We sent a 6-digit code to <strong>@displayEmail</strong>
+            </p>
+        </div>
+
+        <div class="code-input-container">
+            <div class="code-inputs" id="codeInputs">
+                @for (int i = 0; i < 6; i++)
+                {
+                    var index = i;
+                    <input 
+                        type="text" 
+                        inputmode="numeric"
+                        maxlength="1"
+                        class="code-digit @(hasError ? "is-invalid" : "")"
+                        id="@($"digit-{index}")"
+                        @bind="codeDigits[index]"
+                        @bind:event="oninput"
+                        disabled="@isSubmitting"
+                        aria-label="@($"Digit {index + 1}")"
+                        autocomplete="off" />
+                }
+            </div>
+            
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert" aria-live="assertive" aria-atomic="true">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>@errorMessage</span>
+                </div>
+            }
+
+            @if (isSubmitting)
+            {
+                <div class="loading-indicator">
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Verifying code...</span>
+                </div>
+            }
+        </div>
+
+        <div class="verify-actions">
+            <button 
+                type="button" 
+                class="btn btn-primary btn-verify"
+                @onclick="HandleVerifyCode"
+                disabled="@(!IsCodeComplete || isSubmitting)">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Verifying...</span>
+                }
+                else
+                {
+                    <span>Verify Code</span>
+                }
+            </button>
+
+            <div class="resend-section">
+                @if (canResend)
+                {
+                    <button 
+                        type="button" 
+                        class="btn-link"
+                        @onclick="HandleResendCode"
+                        disabled="@isResending">
+                        @if (isResending)
+                        {
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="ms-2">Sending...</span>
+                        }
+                        else
+                        {
+                            <span>Didn't receive a code? Resend</span>
+                        }
+                    </button>
+                }
+                else if (resendRetrySeconds.HasValue)
+                {
+                    <p class="text-muted">
+                        <i class="bi bi-clock"></i>
+                        You can resend code in @FormatRetryTime(resendRetrySeconds.Value)
+                    </p>
+                }
+            </div>
+        </div>
+
+        <div class="verify-footer">
+            <a href="/login" class="btn-link">
+                <i class="bi bi-arrow-left"></i>
+                Back to login
+            </a>
+        </div>
+    </div>
+</div>
+
+@code {
+    [SupplyParameterFromQuery]
+    public string? Email { get; set; }
+
+    private string[] codeDigits = new string[6];
+    private bool isSubmitting = false;
+    private bool isResending = false;
+    private bool hasError = false;
+    private string? errorMessage;
+    private string displayEmail = string.Empty;
+    private bool canResend = true;
+    private int? resendRetrySeconds;
+
+    private bool IsCodeComplete => codeDigits.All(d => !string.IsNullOrEmpty(d) && d.Length == 1);
+    private string CompleteCode => string.Join("", codeDigits);
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (string.IsNullOrWhiteSpace(Email))
+        {
+            // No email provided - redirect to login with a message
+            // This happens if someone tries to access verify-code directly
+            Navigation.NavigateTo("/login");
+            return;
+        }
+
+        displayEmail = Email;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                // Initialize TypeScript module for code input handling
+                await JS.InvokeVoidAsync("import", "/js/verify-code.js");
+            }
+            catch
+            {
+                // Gracefully handle if JS fails to load
+            }
+        }
+    }
+
+    private async Task HandleVerifyCode()
+    {
+        if (!IsCodeComplete || string.IsNullOrWhiteSpace(Email))
+        {
+            return;
+        }
+
+        isSubmitting = true;
+        hasError = false;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AuthApiClient.VerifyCodeAsync(Email, CompleteCode);
+
+            if (response.Success && response.UserId.HasValue && !string.IsNullOrEmpty(response.Email))
+            {
+                // Sign in the user
+                await AuthService.SignInAsync(response.UserId.Value, response.Email);
+
+                // Redirect to home page
+                Navigation.NavigateTo("/", forceLoad: true);
+            }
+            else
+            {
+                // Show error message
+                hasError = true;
+                errorMessage = response.Message ?? "Invalid verification code. Please try again.";
+                
+                // Clear the code inputs
+                Array.Clear(codeDigits, 0, codeDigits.Length);
+                StateHasChanged();
+
+                // Focus first input after error
+                try
+                {
+                    await JS.InvokeVoidAsync("focusFirstDigit");
+                }
+                catch { }
+            }
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private async Task HandleResendCode()
+    {
+        if (string.IsNullOrWhiteSpace(Email) || !canResend)
+        {
+            return;
+        }
+
+        isResending = true;
+        hasError = false;
+        errorMessage = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AuthApiClient.RequestLoginCodeAsync(Email);
+
+            if (response.Success)
+            {
+                // Show success message briefly
+                errorMessage = null;
+                
+                // Clear code inputs
+                Array.Clear(codeDigits, 0, codeDigits.Length);
+                
+                // Disable resend temporarily
+                canResend = false;
+                StateHasChanged();
+
+                // Re-enable after 60 seconds
+                await Task.Delay(60000);
+                canResend = true;
+                StateHasChanged();
+            }
+            else
+            {
+                // Handle rate limiting or other errors
+                hasError = true;
+                errorMessage = response.Message ?? "Failed to resend code. Please try again.";
+                
+                if (response.RetryAfterSeconds.HasValue)
+                {
+                    canResend = false;
+                    resendRetrySeconds = response.RetryAfterSeconds;
+                    StateHasChanged();
+
+                    // Start countdown
+                    _ = Task.Run(async () =>
+                    {
+                        while (resendRetrySeconds > 0)
+                        {
+                            await Task.Delay(1000);
+                            resendRetrySeconds--;
+                            await InvokeAsync(StateHasChanged);
+                        }
+                        canResend = true;
+                        resendRetrySeconds = null;
+                        await InvokeAsync(StateHasChanged);
+                    });
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isResending = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatRetryTime(int seconds)
+    {
+        if (seconds < 60)
+        {
+            return $"{seconds} second{(seconds != 1 ? "s" : "")}";
+        }
+        
+        var minutes = seconds / 60;
+        var remainingSeconds = seconds % 60;
+        
+        if (remainingSeconds == 0)
+        {
+            return $"{minutes} minute{(minutes != 1 ? "s" : "")}";
+        }
+        
+        return $"{minutes} minute{(minutes != 1 ? "s" : "")} and {remainingSeconds} second{(remainingSeconds != 1 ? "s" : "")}";
+    }
+}

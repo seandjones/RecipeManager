@@ -1,0 +1,150 @@
+{
+  "slug": "example-add-recipe-crud",
+  "title": "Add Recipe CRUD Operations (Example)",
+  "category": "feature",
+  "created_at": "2026-04-12T12:00:00Z",
+  "status": "pending",
+  "description": "Implement complete CRUD (Create, Read, Update, Delete) operations for recipe management. This includes database models, API endpoints, HTTP clients, and Blazor UI components. This is an EXAMPLE plan to demonstrate the harness workflow.",
+  "verification_command": "dotnet test",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Add PostgreSQL database to AppHost",
+      "status": "pending",
+      "acceptance_criteria": [
+        "PostgreSQL resource added to AppHost.cs using AddPostgres",
+        "Database named 'recipedb' created",
+        "ApiService references database with .WithReference(postgres).WaitFor(postgres)",
+        "EF Core PostgreSQL package added to ApiService project",
+        "AppHost starts successfully and Aspire Dashboard shows postgres container running"
+      ],
+      "notes": null
+    },
+    {
+      "id": 2,
+      "title": "Create Recipe domain model and database context",
+      "status": "pending",
+      "acceptance_criteria": [
+        "Recipe entity class created with properties: Id, Name, Description, Ingredients, Instructions, PrepTimeMinutes, CookTimeMinutes, Servings, CreatedAt, UpdatedAt",
+        "RecipeDbContext class created inheriting from DbContext",
+        "RecipeDbContext configured with Recipe entity in OnModelCreating",
+        "RecipeDbContext registered in ApiService Program.cs with AddNpgsqlDbContext",
+        "Initial migration created using dotnet ef migrations add",
+        "Migration applies successfully (database created with Recipes table)"
+      ],
+      "notes": null
+    },
+    {
+      "id": 3,
+      "title": "Implement Recipe API endpoints with integration tests",
+      "status": "pending",
+      "acceptance_criteria": [
+        "GET /api/recipes endpoint returns 200 with array of recipes",
+        "GET /api/recipes/{id} endpoint returns 200 with recipe or 404 if not found",
+        "POST /api/recipes endpoint creates recipe and returns 201 with location header",
+        "POST /api/recipes validates input and returns 400 for invalid data (empty name)",
+        "PUT /api/recipes/{id} endpoint updates recipe and returns 200 or 404",
+        "DELETE /api/recipes/{id} endpoint deletes recipe and returns 204 or 404",
+        "All endpoints have .WithName() and .WithOpenApi() calls",
+        "Integration tests created in RecipeManager.Tests/RecipeApiTests.cs",
+        "All integration tests pass (minimum 8 tests covering happy paths and error cases)"
+      ],
+      "notes": null
+    },
+    {
+      "id": 4,
+      "title": "Create RecipeApiClient in Web project",
+      "status": "pending",
+      "acceptance_criteria": [
+        "RecipeApiClient class created in RecipeManager.Web using primary constructor with HttpClient",
+        "GetRecipesAsync method returns Recipe[] from GET /api/recipes",
+        "GetRecipeAsync(int id) method returns Recipe? from GET /api/recipes/{id}",
+        "CreateRecipeAsync(Recipe recipe) method posts to /api/recipes and returns created Recipe",
+        "UpdateRecipeAsync(int id, Recipe recipe) method puts to /api/recipes/{id}",
+        "DeleteRecipeAsync(int id) method deletes from /api/recipes/{id}",
+        "All methods support CancellationToken and handle errors gracefully",
+        "RecipeApiClient registered in Web/Program.cs with AddHttpClient and service discovery URL",
+        "Unit tests verify client methods (optional for MVP)"
+      ],
+      "notes": null
+    },
+    {
+      "id": 5,
+      "title": "Build Recipes list page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "Recipes.razor component created in RecipeManager.Web/Components/Pages/",
+        "Page accessible at /recipes route with @page directive",
+        "@attribute [StreamRendering(true)] added for streaming",
+        "@attribute [OutputCache(Duration = 10)] added for caching",
+        "RecipeApiClient injected and used to fetch recipes in OnInitializedAsync",
+        "Loading state displayed while fetching (if recipes == null)",
+        "Recipes displayed in grid or table format showing Name, Description, PrepTime, CookTime",
+        "Each recipe has View Details, Edit, and Delete buttons/links",
+        "Create New Recipe button/link at top of page",
+        "NavLink added to NavMenu.razor for /recipes route",
+        "Page renders successfully when app is run"
+      ],
+      "notes": null
+    },
+    {
+      "id": 6,
+      "title": "Build Create Recipe form page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "CreateRecipe.razor component created at /recipes/create",
+        "EditForm component used with RecipeFormModel",
+        "Input fields for Name, Description, Ingredients, Instructions, PrepTime, CookTime, Servings",
+        "DataAnnotationsValidator and ValidationSummary included",
+        "ValidationMessage for each input field",
+        "Submit button calls HandleSubmit method",
+        "HandleSubmit creates Recipe via RecipeApiClient.CreateRecipeAsync",
+        "On success, navigates to /recipes using NavigationManager",
+        "On error, displays error message to user",
+        "Cancel button returns to /recipes",
+        "Form validation works (required fields, etc.)"
+      ],
+      "notes": null
+    },
+    {
+      "id": 7,
+      "title": "Build Edit Recipe form page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "EditRecipe.razor component created at /recipes/{id:int}/edit",
+        "Loads existing recipe data on initialization using RecipeApiClient.GetRecipeAsync",
+        "Shows loading state while fetching recipe",
+        "Displays 404 or error message if recipe not found",
+        "Pre-populates form with existing recipe data",
+        "Uses same form structure as CreateRecipe",
+        "Submit updates recipe via RecipeApiClient.UpdateRecipeAsync",
+        "On success, navigates to recipe details or list",
+        "Cancel returns to previous page",
+        "Validation works same as create form"
+      ],
+      "notes": null
+    },
+    {
+      "id": 8,
+      "title": "Build Recipe details view page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "RecipeDetails.razor component created at /recipes/{id:int}",
+        "Loads recipe data using RecipeApiClient.GetRecipeAsync",
+        "Displays all recipe fields: Name, Description, Ingredients, Instructions, times, servings",
+        "Shows formatted ingredients and instructions (line breaks preserved)",
+        "Edit button links to /recipes/{id}/edit",
+        "Delete button with confirmation dialog",
+        "Delete calls RecipeApiClient.DeleteRecipeAsync and navigates to /recipes",
+        "Back to List button returns to /recipes",
+        "Shows 404 page if recipe not found",
+        "Page renders correctly with sample data"
+      ],
+      "notes": null
+    }
+  ],
+  "dependencies": [
+    "Docker Desktop must be running (for PostgreSQL container)",
+    "EF Core tools installed (dotnet tool install --global dotnet-ef)"
+  ]
+}

@@ -1,0 +1,15 @@
+# Ignore evaluator feedback unless explicitly added
+eval_feedback/*.json
+
+# Ignore Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Ignore temporary files
+*.tmp
+*.temp
+
+# Keep structure
+!.gitkeep
+!example-*.json

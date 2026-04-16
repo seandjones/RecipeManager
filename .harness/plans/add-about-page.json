@@ -1,0 +1,28 @@
+{
+  "slug": "add-about-page",
+  "title": "Add About Page to Blazor App",
+  "category": "feature",
+  "created_at": "2026-04-12T12:30:00Z",
+  "status": "complete",
+  "description": "Add a simple About page to the RecipeManager web frontend that describes the project and its technologies.",
+  "verification_command": "dotnet test",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Create About page component",
+      "status": "pending",
+      "acceptance_criteria": [
+        "About.razor component created in RecipeManager.Web/Components/Pages/",
+        "Component has @page \"/about\" directive",
+        "Page displays project name 'RecipeManager'",
+        "Page describes the project as '.NET Aspire distributed application'",
+        "Page lists key technologies: .NET 10, Aspire, Blazor Server, Minimal APIs, Redis",
+        "NavLink added to NavMenu.razor for /about route",
+        "Page accessible at /about when app runs",
+        "Build succeeds without errors"
+      ],
+      "notes": "About page created with project info, tech stack, architecture, and features. NavLink added to navigation menu. Build succeeds. Evaluator: PASS"
+    }
+  ],
+  "dependencies": []
+}

@@ -1,0 +1,37 @@
+{
+  "slug": "example-feature",
+  "title": "Example Feature Title",
+  "category": "feature",
+  "created_at": "2026-04-12T00:00:00Z",
+  "status": "pending",
+  "description": "Detailed description of what this plan accomplishes. Be specific about the end goal and any important context.",
+  "verification_command": "dotnet test",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "First task - describe what it accomplishes",
+      "status": "pending",
+      "acceptance_criteria": [
+        "Specific, testable criterion #1",
+        "Specific, testable criterion #2",
+        "Specific, testable criterion #3"
+      ],
+      "notes": null
+    },
+    {
+      "id": 2,
+      "title": "Second task - builds on first task",
+      "status": "pending",
+      "acceptance_criteria": [
+        "Criterion that can be verified by looking at code",
+        "Criterion that can be verified by running tests",
+        "Criterion that specifies observable behavior"
+      ],
+      "notes": null
+    }
+  ],
+  "dependencies": [
+    "List any external dependencies",
+    "Prerequisites that must be met first"
+  ]
+}

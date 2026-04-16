@@ -1,0 +1,21 @@
+@inject NavigationManager Navigation
+
+@code {
+    protected override void OnInitialized()
+    {
+        // Get the current URI and extract the path
+        var returnUrl = Navigation.ToBaseRelativePath(Navigation.Uri);
+
+        // Only include return URL if it's not the login or verify-code page itself
+        if (!string.IsNullOrEmpty(returnUrl) && 
+            !returnUrl.StartsWith("login", StringComparison.OrdinalIgnoreCase) &&
+            !returnUrl.StartsWith("verify-code", StringComparison.OrdinalIgnoreCase))
+        {
+            Navigation.NavigateTo($"/login?returnUrl={Uri.EscapeDataString(returnUrl)}", forceLoad: true);
+        }
+        else
+        {
+            Navigation.NavigateTo("/login", forceLoad: true);
+        }
+    }
+}

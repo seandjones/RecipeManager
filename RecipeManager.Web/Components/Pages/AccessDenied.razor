@@ -1,0 +1,66 @@
+@page "/access-denied"
+@attribute [AllowAnonymous]
+@using Microsoft.AspNetCore.Components.Authorization
+
+<PageTitle>Access Denied - RecipeManager</PageTitle>
+
+<div class="access-denied-container">
+    <div class="access-denied-card">
+        <AuthorizeView>
+            <Authorized>
+                <!-- User is logged in but lacks permission -->
+                <div class="access-denied-header access-denied-header--forbidden">
+                    <h1>
+                        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+                        Access Denied
+                    </h1>
+                </div>
+                <div class="access-denied-body">
+                    <div class="icon-shield icon-shield--forbidden">
+                        <i class="bi bi-shield-lock" aria-hidden="true"></i>
+                    </div>
+                    <div class="access-denied-message">
+                        <p class="lead">You don't have permission to access this page.</p>
+                        <p>Your account does not have the necessary permissions to view this resource.</p>
+                        <p>If you believe this is an error, please contact support.</p>
+                    </div>
+                </div>
+                <div class="access-denied-footer">
+                    <a href="/" aria-label="Return to home page">
+                        <i class="bi bi-house" aria-hidden="true"></i>
+                        Return to Home
+                    </a>
+                </div>
+            </Authorized>
+            <NotAuthorized>
+                <!-- User is not logged in -->
+                <div class="access-denied-header">
+                    <h1>
+                        <i class="bi bi-shield-exclamation" aria-hidden="true"></i>
+                        Authentication Required
+                    </h1>
+                </div>
+                <div class="access-denied-body">
+                    <div class="icon-shield">
+                        <i class="bi bi-person-lock" aria-hidden="true"></i>
+                    </div>
+                    <div class="access-denied-message">
+                        <p class="lead">You need to be logged in to access this page.</p>
+                        <p>Please log in with your account to continue to the requested page.</p>
+                        <p>Don't have an account? Simply enter your email to get started.</p>
+                    </div>
+                    <a href="/login" class="btn-login" aria-label="Go to login page">
+                        <i class="bi bi-box-arrow-in-right" aria-hidden="true"></i>
+                        Go to Login
+                    </a>
+                </div>
+                <div class="access-denied-footer">
+                    <a href="/" aria-label="Return to home page">
+                        <i class="bi bi-house" aria-hidden="true"></i>
+                        Return to Home
+                    </a>
+                </div>
+            </NotAuthorized>
+        </AuthorizeView>
+    </div>
+</div>

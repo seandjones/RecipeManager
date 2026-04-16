@@ -1,0 +1,346 @@
+// Shared Form Component Styles - RecipeManager Authentication
+// BEM naming convention with shared variables and mixins
+
+@import 'variables';
+@import 'mixins';
+
+// ============================================================================
+// AUTH FORM CONTAINER (Login, VerifyCode)
+// ============================================================================
+
+.auth-container {
+  @include full-viewport;
+  @include gradient-background;
+}
+
+.auth-card {
+  @include card-container;
+  @include animation-slide-in;
+  max-width: $container-max-width-sm;
+  
+  &--wide {
+    max-width: $container-max-width-md;
+  }
+}
+
+// ============================================================================
+// AUTH FORM HEADER
+// ============================================================================
+
+.auth-header {
+  text-align: center;
+  margin-bottom: $spacing-2xl;
+  
+  &__title {
+    @include heading($font-size-3xl, $font-weight-bold, $color-gray-800);
+    margin-bottom: $spacing-sm;
+    
+    @include respond-to($breakpoint-sm) {
+      font-size: $font-size-2xl;
+    }
+  }
+  
+  &__subtitle {
+    @include subtitle($font-size-base, $color-gray-500);
+    margin: 0;
+    line-height: $line-height-normal;
+  }
+  
+  &__subtitle strong {
+    color: $color-primary-start;
+    font-weight: $font-weight-semibold;
+    
+    @include dark-mode {
+      color: lighten($color-primary-start, 15%);
+    }
+  }
+}
+
+// ============================================================================
+// FORM ELEMENTS
+// ============================================================================
+
+.auth-form {
+  &__group {
+    margin-bottom: $spacing-2xl;
+  }
+  
+  &__label {
+    display: block;
+    font-size: $font-size-sm;
+    font-weight: $font-weight-medium;
+    color: $color-gray-700;
+    margin-bottom: $spacing-sm;
+    
+    @include dark-mode {
+      color: $color-dark-text-muted;
+    }
+  }
+  
+  &__input {
+    @include input-base;
+    @include input-valid;
+    @include input-invalid;
+  }
+  
+  &__input--code-digit {
+    width: $code-digit-size;
+    height: $code-digit-size;
+    font-size: $code-digit-font-size;
+    font-weight: $font-weight-bold;
+    text-align: center;
+    font-family: $font-family-monospace;
+    padding: 0;
+    
+    &:focus {
+      transform: scale(1.05);
+    }
+    
+    &.is-invalid {
+      @include animation-shake;
+    }
+    
+    @include respond-to($breakpoint-sm) {
+      width: $code-digit-size-mobile;
+      height: $code-digit-size-mobile;
+      font-size: $code-digit-font-size-mobile;
+    }
+    
+    @include reduced-motion {
+      &:focus {
+        transform: none;
+      }
+    }
+  }
+  
+  &__help-text {
+    font-size: $font-size-sm;
+    color: $color-gray-500;
+    margin-top: $spacing-sm;
+    
+    @include dark-mode {
+      color: $color-dark-text-muted;
+    }
+  }
+  
+  &__error-message {
+    font-size: $font-size-sm;
+    color: $color-error;
+    margin-top: $spacing-sm;
+  }
+}
+
+// ============================================================================
+// CODE INPUT CONTAINER
+// ============================================================================
+
+.code-inputs {
+  display: flex;
+  gap: $code-digit-gap;
+  justify-content: center;
+  margin-bottom: $spacing-xl;
+  
+  @include respond-to($breakpoint-sm) {
+    gap: $code-digit-gap-mobile;
+  }
+}
+
+// ============================================================================
+// BUTTONS
+// ============================================================================
+
+.auth-btn {
+  &--primary {
+    @include button-primary;
+    width: 100%;
+    margin-bottom: $spacing-lg;
+    
+    @include respond-to($breakpoint-sm) {
+      padding: $spacing-md $spacing-xl;
+      font-size: $font-size-base;
+    }
+  }
+  
+  &--link {
+    @include button-link;
+  }
+  
+  &--danger {
+    @include button-link($color-error);
+  }
+}
+
+// ============================================================================
+// ALERTS
+// ============================================================================
+
+.auth-alert {
+  &--danger {
+    @include alert-danger;
+  }
+  
+  &--success {
+    @include alert-success;
+  }
+  
+  &--info {
+    @include alert-info;
+  }
+  
+  &__icon {
+    font-size: $font-size-xl;
+    flex-shrink: 0;
+    margin-top: $spacing-xs;
+  }
+  
+  &__message {
+    flex: 1;
+  }
+}
+
+// ============================================================================
+// LOADING INDICATOR
+// ============================================================================
+
+.auth-loading {
+  text-align: center;
+  padding: $spacing-lg;
+  color: $color-gray-500;
+  font-size: $font-size-base;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  
+  @include dark-mode {
+    color: $color-dark-text-muted;
+  }
+  
+  &__spinner {
+    @include spinner;
+  }
+}
+
+// ============================================================================
+// FOOTER/ACTIONS
+// ============================================================================
+
+.auth-actions {
+  margin-bottom: $spacing-xl;
+}
+
+.auth-footer {
+  text-align: center;
+  padding-top: $spacing-xl;
+  border-top: $border-width solid $color-gray-200;
+  
+  @include dark-mode {
+    border-top-color: $color-dark-border;
+  }
+  
+  &__text {
+    font-size: $font-size-sm;
+    color: $color-gray-500;
+    margin-bottom: $spacing-sm;
+    
+    @include dark-mode {
+      color: $color-dark-text-muted;
+    }
+  }
+  
+  &__link {
+    @include button-link($color-gray-500);
+    font-size: $font-size-sm;
+    
+    &:hover {
+      color: $color-gray-700;
+    }
+    
+    @include dark-mode {
+      color: $color-gray-400;
+      
+      &:hover {
+        color: $color-dark-text-muted;
+      }
+    }
+  }
+}
+
+// ============================================================================
+// RESEND SECTION (VerifyCode specific)
+// ============================================================================
+
+.auth-resend {
+  text-align: center;
+  min-height: $spacing-2xl;
+  
+  &__text {
+    margin: 0;
+    font-size: $font-size-sm;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: $spacing-sm;
+  }
+  
+  &__icon {
+    font-size: $font-size-md;
+  }
+}
+
+// ============================================================================
+// HIGH CONTRAST MODE
+// ============================================================================
+
+@include high-contrast {
+  .auth-card {
+    border: $border-width-thick solid $color-black;
+  }
+  
+  .auth-form__input {
+    border-width: $focus-outline-width;
+  }
+  
+  .auth-form__input--code-digit {
+    border-width: $focus-outline-width;
+  }
+}
+
+// ============================================================================
+// REDUCED MOTION
+// ============================================================================
+
+@include reduced-motion {
+  .auth-card {
+    animation: none;
+  }
+  
+  .auth-form__input,
+  .auth-btn--primary,
+  .auth-btn--link {
+    transition: none;
+  }
+  
+  .auth-form__input--code-digit:focus {
+    transform: none;
+  }
+  
+  .auth-btn--primary:hover:not(:disabled) {
+    transform: none;
+  }
+  
+  .auth-form__input--code-digit.is-invalid {
+    animation: none;
+  }
+}
+
+// ============================================================================
+// FOCUS VISIBLE (Keyboard Navigation)
+// ============================================================================
+
+.auth-form__input:focus-visible,
+.auth-btn--primary:focus-visible,
+.auth-btn--link:focus-visible {
+  outline: $focus-outline-width solid $color-focus-outline;
+  outline-offset: $focus-outline-offset;
+}

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="RecipeManager.ApiService/RecipeManager.ApiService.csproj" />
+  <Project Path="RecipeManager.AppHost/RecipeManager.AppHost.csproj" />
+  <Project Path="RecipeManager.ServiceDefaults/RecipeManager.ServiceDefaults.csproj" />
+  <Project Path="RecipeManager.Tests/RecipeManager.Tests.csproj" />
+  <Project Path="RecipeManager.Web/RecipeManager.Web.csproj" />
+</Solution>

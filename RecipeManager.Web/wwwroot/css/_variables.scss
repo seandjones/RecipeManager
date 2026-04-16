@@ -1,0 +1,227 @@
+// Shared SCSS Variables - RecipeManager Authentication
+// Used across Login, VerifyCode, and NavMenu components
+
+// ============================================================================
+// COLORS
+// ============================================================================
+
+// Brand Colors - Primary Gradient
+$color-primary-start: #667eea;
+$color-primary-end: #764ba2;
+$color-primary-gradient: linear-gradient(135deg, $color-primary-start 0%, $color-primary-end 100%);
+
+// Neutral Colors
+$color-white: #ffffff;
+$color-black: #000000;
+
+// Gray Scale
+$color-gray-50: #f9fafb;
+$color-gray-100: #f3f4f6;
+$color-gray-200: #e5e7eb;
+$color-gray-300: #d1d5db;
+$color-gray-400: #9ca3af;
+$color-gray-500: #6b7280;
+$color-gray-600: #4b5563;
+$color-gray-700: #374151;
+$color-gray-800: #1f2937;
+$color-gray-900: #111827;
+
+// Semantic Colors - Success
+$color-success-light: #d1fae5;
+$color-success: #10b981;
+$color-success-dark: #059669;
+
+// Semantic Colors - Error/Danger
+$color-error-light: #fef2f2;
+$color-error-border: #fecaca;
+$color-error: #ef4444;
+$color-error-dark: #dc2626;
+$color-error-darkest: #991b1b;
+
+// Semantic Colors - Warning
+$color-warning-light: #fef3c7;
+$color-warning: #f59e0b;
+$color-warning-dark: #d97706;
+
+// Semantic Colors - Info
+$color-info-light: #dbeafe;
+$color-info: #3b82f6;
+$color-info-dark: #2563eb;
+
+// Interactive States
+$color-hover-light: rgba(102, 126, 234, 0.1);
+$color-hover-danger: rgba(239, 68, 68, 0.1);
+$color-focus-ring: rgba(102, 126, 234, 0.3);
+$color-focus-outline: #667eea;
+
+// Dark Mode Colors
+$color-dark-bg: #1f2937;
+$color-dark-card: #374151;
+$color-dark-border: #4b5563;
+$color-dark-text: #f9fafb;
+$color-dark-text-muted: #d1d5db;
+
+// ============================================================================
+// SPACING
+// ============================================================================
+
+$spacing-xs: 0.25rem;   // 4px
+$spacing-sm: 0.5rem;    // 8px
+$spacing-md: 0.75rem;   // 12px
+$spacing-lg: 1rem;      // 16px
+$spacing-xl: 1.5rem;    // 24px
+$spacing-2xl: 2rem;     // 32px
+$spacing-3xl: 2.5rem;   // 40px
+$spacing-4xl: 3rem;     // 48px
+
+// ============================================================================
+// TYPOGRAPHY
+// ============================================================================
+
+// Font Families
+$font-family-base: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Helvetica Neue', sans-serif;
+$font-family-monospace: 'Courier New', Courier, monospace;
+
+// Font Sizes
+$font-size-xs: 0.75rem;    // 12px
+$font-size-sm: 0.875rem;   // 14px
+$font-size-base: 0.95rem;  // 15px
+$font-size-md: 1rem;       // 16px
+$font-size-lg: 1.125rem;   // 18px
+$font-size-xl: 1.25rem;    // 20px
+$font-size-2xl: 1.5rem;    // 24px
+$font-size-3xl: 1.75rem;   // 28px
+$font-size-4xl: 2rem;      // 32px
+
+// Font Weights
+$font-weight-normal: 400;
+$font-weight-medium: 500;
+$font-weight-semibold: 600;
+$font-weight-bold: 700;
+
+// Line Heights
+$line-height-tight: 1.25;
+$line-height-normal: 1.5;
+$line-height-relaxed: 1.75;
+
+// ============================================================================
+// LAYOUT
+// ============================================================================
+
+// Border Radius
+$border-radius-sm: 4px;
+$border-radius-md: 6px;
+$border-radius-lg: 8px;
+$border-radius-xl: 12px;
+$border-radius-full: 50%;
+
+// Shadows
+$shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+$shadow-md: 0 4px 6px rgba(0, 0, 0, 0.1);
+$shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.1);
+$shadow-xl: 0 10px 40px rgba(0, 0, 0, 0.2);
+$shadow-focus: 0 0 0 3px rgba(102, 126, 234, 0.1);
+
+// Borders
+$border-width: 1px;
+$border-width-thick: 2px;
+$border-width-focus: 3px;
+
+// Z-Index Layers
+$z-index-dropdown: 1000;
+$z-index-sticky: 1020;
+$z-index-fixed: 1030;
+$z-index-modal-backdrop: 1040;
+$z-index-modal: 1050;
+$z-index-popover: 1060;
+$z-index-tooltip: 1070;
+
+// ============================================================================
+// BREAKPOINTS (Mobile-First)
+// ============================================================================
+
+$breakpoint-xs: 0;
+$breakpoint-sm: 576px;
+$breakpoint-md: 768px;
+$breakpoint-lg: 992px;
+$breakpoint-xl: 1200px;
+$breakpoint-xxl: 1400px;
+
+// ============================================================================
+// TRANSITIONS
+// ============================================================================
+
+$transition-fast: 0.15s ease-in-out;
+$transition-base: 0.3s ease-out;
+$transition-slow: 0.5s ease-in-out;
+
+// Transition Properties
+$transition-all: all $transition-fast;
+$transition-color: color $transition-fast;
+$transition-background: background-color $transition-fast;
+$transition-border: border-color $transition-fast;
+$transition-transform: transform $transition-fast;
+$transition-opacity: opacity $transition-fast;
+
+// ============================================================================
+// COMPONENT-SPECIFIC VARIABLES
+// ============================================================================
+
+// Containers
+$container-padding: $spacing-lg;
+$container-max-width-sm: 450px;
+$container-max-width-md: 500px;
+$container-max-width-lg: 600px;
+
+// Cards
+$card-border-radius: $border-radius-xl;
+$card-shadow: $shadow-xl;
+$card-padding: $spacing-3xl;
+$card-padding-mobile: $spacing-2xl;
+
+// Forms
+$input-height: 3rem;
+$input-padding-x: $spacing-lg;
+$input-padding-y: $spacing-md;
+$input-border-width: $border-width-thick;
+$input-border-radius: $border-radius-lg;
+$input-font-size: $font-size-md;
+
+// Buttons
+$button-height: $input-height;
+$button-padding-x: $spacing-xl;
+$button-padding-y: $spacing-md;
+$button-border-radius: $border-radius-lg;
+$button-font-size: $font-size-md;
+$button-font-weight: $font-weight-semibold;
+
+// Code Inputs (VerifyCode page)
+$code-digit-size: 3.5rem;
+$code-digit-size-mobile: 2.75rem;
+$code-digit-font-size: 1.75rem;
+$code-digit-font-size-mobile: 1.5rem;
+$code-digit-gap: $spacing-md;
+$code-digit-gap-mobile: $spacing-sm;
+
+// Avatar (NavMenu)
+$avatar-size: 2.5rem;
+$avatar-size-mobile: 2rem;
+$avatar-gradient: $color-primary-gradient;
+
+// ============================================================================
+// ACCESSIBILITY
+// ============================================================================
+
+$focus-outline-width: $border-width-focus;
+$focus-outline-offset: 2px;
+$focus-outline-color: $color-focus-outline;
+
+$min-touch-target: 44px; // WCAG 2.1 AA minimum
+
+// ============================================================================
+// ANIMATION
+// ============================================================================
+
+$animation-slide-duration: 0.3s;
+$animation-shake-duration: 0.3s;
+$animation-fade-duration: 0.2s;

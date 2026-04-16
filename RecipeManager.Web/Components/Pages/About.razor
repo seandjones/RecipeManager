@@ -1,0 +1,68 @@
+@page "/about"
+@attribute [Authorize]
+
+<PageTitle>About - RecipeManager</PageTitle>
+
+<h1>About RecipeManager</h1>
+
+<div class="about-content">
+    <section class="mb-4">
+        <h2>Overview</h2>
+        <p>
+            RecipeManager is a modern recipe management application demonstrating cloud-native 
+            microservices architecture using .NET Aspire.
+        </p>
+    </section>
+
+    <section class="mb-4">
+        <h2>Technology Stack</h2>
+        <ul>
+            <li><strong>.NET 10</strong> - Latest .NET runtime and SDK</li>
+            <li><strong>Aspire 13.1.0</strong> - Cloud-native orchestration and observability</li>
+            <li><strong>Blazor Server</strong> - Interactive server-side rendering</li>
+            <li><strong>Minimal APIs</strong> - Lightweight HTTP API endpoints</li>
+            <li><strong>Redis</strong> - Distributed caching</li>
+            <li><strong>OpenTelemetry</strong> - Distributed tracing and metrics</li>
+        </ul>
+    </section>
+
+    <section class="mb-4">
+        <h2>Architecture</h2>
+        <p>
+            This is a <strong>.NET Aspire distributed application</strong> with the following components:
+        </p>
+        <ul>
+            <li><strong>RecipeManager.AppHost</strong> - Aspire orchestrator</li>
+            <li><strong>RecipeManager.Web</strong> - Blazor Server frontend</li>
+            <li><strong>RecipeManager.ApiService</strong> - Minimal API backend</li>
+            <li><strong>RecipeManager.ServiceDefaults</strong> - Shared Aspire defaults</li>
+            <li><strong>RecipeManager.Tests</strong> - Integration tests</li>
+        </ul>
+    </section>
+
+    <section class="mb-4">
+        <h2>Key Features</h2>
+        <ul>
+            <li>Service Discovery - Automatic service-to-service communication</li>
+            <li>Distributed Caching - Redis-backed output caching</li>
+            <li>Observability - Built-in OpenTelemetry (metrics, traces, logs)</li>
+            <li>Health Checks - Automatic readiness/liveness probes</li>
+            <li>Resilience - Retry policies and circuit breakers</li>
+        </ul>
+    </section>
+</div>
+
+<style>
+    .about-content {
+        max-width: 800px;
+    }
+
+    .about-content h2 {
+        color: var(--bs-primary);
+        margin-top: 1.5rem;
+    }
+
+    .about-content ul {
+        line-height: 1.8;
+    }
+</style>

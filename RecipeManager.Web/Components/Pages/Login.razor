@@ -1,0 +1,169 @@
+@page "/login"
+@attribute [AllowAnonymous]
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager Navigation
+@inject IJSRuntime JS
+@rendermode InteractiveServer
+
+<PageTitle>Login - RecipeManager</PageTitle>
+
+<div class="login-container">
+    <div class="login-card">
+        <div class="login-header">
+            <h1>Welcome to RecipeManager</h1>
+            <p class="login-subtitle">Enter your email to receive a login code</p>
+        </div>
+
+        <EditForm Model="@loginModel" OnValidSubmit="HandleSubmit" FormName="loginForm">
+            <DataAnnotationsValidator />
+
+            <div class="form-group">
+                <label for="email" class="form-label">
+                    Email Address
+                </label>
+                <InputText 
+                    id="email" 
+                    @bind-Value="loginModel.Email" 
+                    type="email"
+                    class="@emailInputClass"
+                    placeholder="you@example.com"
+                    autocomplete="email"
+                    disabled="@isSubmitting"
+                    @ref="emailInput" />
+                <ValidationMessage For="@(() => loginModel.Email)" class="invalid-feedback" />
+            </div>
+
+            @if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="alert alert-danger" role="alert" aria-live="assertive" aria-atomic="true">
+                    <i class="bi bi-exclamation-triangle-fill"></i>
+                    <span>@errorMessage</span>
+                    @if (retryAfterSeconds.HasValue)
+                    {
+                        <p class="retry-timer">
+                            Please wait @FormatRetryTime(retryAfterSeconds.Value) before trying again.
+                        </p>
+                    }
+                </div>
+            }
+
+            <button 
+                type="submit" 
+                class="btn btn-primary btn-login"
+                disabled="@isSubmitting">
+                @if (isSubmitting)
+                {
+                    <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                    <span class="ms-2">Sending code...</span>
+                }
+                else
+                {
+                    <span>Send Login Code</span>
+                }
+            </button>
+        </EditForm>
+
+        <div class="login-footer">
+            <p class="text-muted">
+                <i class="bi bi-shield-check"></i>
+                We'll send a 6-digit code to your email. The code expires in 15 minutes.
+            </p>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginFormModel loginModel = new();
+    private bool isSubmitting = false;
+    private bool hasError = false;
+    private string? errorMessage;
+    private int? retryAfterSeconds;
+    private InputText? emailInput;
+
+    private string emailInputClass => hasError ? "form-control is-invalid" : "form-control";
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Load client-side validation JavaScript
+            try
+            {
+                await JS.InvokeVoidAsync("import", "/js/login.js");
+            }
+            catch
+            {
+                // Gracefully handle if JS fails to load
+            }
+
+            // Auto-focus on email field
+            if (emailInput?.Element is not null)
+            {
+                await emailInput.Element.Value.FocusAsync();
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        hasError = false;
+        errorMessage = null;
+        retryAfterSeconds = null;
+        StateHasChanged();
+
+        try
+        {
+            var response = await AuthApiClient.RequestLoginCodeAsync(loginModel.Email.Trim());
+
+            if (response.Success)
+            {
+                // Success - redirect to verification page with email parameter
+                Navigation.NavigateTo($"/verify-code?email={Uri.EscapeDataString(loginModel.Email.Trim())}");
+            }
+            else
+            {
+                // Show error message
+                hasError = true;
+                errorMessage = response.Message ?? "Failed to send login code. Please try again.";
+                retryAfterSeconds = response.RetryAfterSeconds;
+            }
+        }
+        catch (Exception ex)
+        {
+            hasError = true;
+            errorMessage = $"An unexpected error occurred: {ex.Message}";
+        }
+        finally
+        {
+            isSubmitting = false;
+            StateHasChanged();
+        }
+    }
+
+    private string FormatRetryTime(int seconds)
+    {
+        if (seconds < 60)
+        {
+            return $"{seconds} second{(seconds != 1 ? "s" : "")}";
+        }
+        
+        var minutes = seconds / 60;
+        var remainingSeconds = seconds % 60;
+        
+        if (remainingSeconds == 0)
+        {
+            return $"{minutes} minute{(minutes != 1 ? "s" : "")}";
+        }
+        
+        return $"{minutes} minute{(minutes != 1 ? "s" : "")} and {remainingSeconds} second{(remainingSeconds != 1 ? "s" : "")}";
+    }
+
+    public class LoginFormModel
+    {
+        [Required(ErrorMessage = "Email address is required")]
+        [EmailAddress(ErrorMessage = "Please enter a valid email address")]
+        [MaxLength(256, ErrorMessage = "Email address is too long")]
+        public string Email { get; set; } = string.Empty;
+    }
+}

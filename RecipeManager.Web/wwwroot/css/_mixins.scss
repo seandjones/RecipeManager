@@ -1,0 +1,516 @@
+// Shared SCSS Mixins - RecipeManager Authentication
+// Common patterns and media queries used across components
+
+@import 'variables';
+
+// ============================================================================
+// MEDIA QUERIES (Mobile-First)
+// ============================================================================
+
+// Small devices (landscape phones, 576px and up)
+@mixin respond-sm {
+  @media (min-width: $breakpoint-sm) {
+    @content;
+  }
+}
+
+// Medium devices (tablets, 768px and up)
+@mixin respond-md {
+  @media (min-width: $breakpoint-md) {
+    @content;
+  }
+}
+
+// Large devices (desktops, 992px and up)
+@mixin respond-lg {
+  @media (min-width: $breakpoint-lg) {
+    @content;
+  }
+}
+
+// Extra large devices (large desktops, 1200px and up)
+@mixin respond-xl {
+  @media (min-width: $breakpoint-xl) {
+    @content;
+  }
+}
+
+// Max-width media queries (for mobile-specific overrides)
+@mixin respond-max-sm {
+  @media (max-width: #{$breakpoint-sm - 1px}) {
+    @content;
+  }
+}
+
+@mixin respond-max-md {
+  @media (max-width: #{$breakpoint-md - 1px}) {
+    @content;
+  }
+}
+
+// Custom breakpoint
+@mixin respond-to($breakpoint) {
+  @media (max-width: $breakpoint) {
+    @content;
+  }
+}
+
+// ============================================================================
+// ACCESSIBILITY MIXINS
+// ============================================================================
+
+// Screen reader only (visually hidden but accessible to screen readers)
+@mixin sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+// Focus visible styles (keyboard navigation)
+@mixin focus-visible {
+  &:focus-visible {
+    outline: $focus-outline-width solid $focus-outline-color;
+    outline-offset: $focus-outline-offset;
+  }
+}
+
+// Focus ring (for interactive elements)
+@mixin focus-ring {
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 $focus-outline-width $color-focus-ring;
+  }
+}
+
+// High contrast mode support
+@mixin high-contrast {
+  @media (prefers-contrast: high) {
+    @content;
+  }
+}
+
+// Reduced motion support (accessibility)
+@mixin reduced-motion {
+  @media (prefers-reduced-motion: reduce) {
+    @content;
+  }
+}
+
+// Dark mode support
+@mixin dark-mode {
+  @media (prefers-color-scheme: dark) {
+    @content;
+  }
+}
+
+// ============================================================================
+// LAYOUT MIXINS
+// ============================================================================
+
+// Flexbox center (horizontal and vertical)
+@mixin flex-center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+// Flexbox column center
+@mixin flex-column-center {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+// Full viewport height container
+@mixin full-viewport {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: $container-padding;
+}
+
+// Card container
+@mixin card-container {
+  background: $color-white;
+  border-radius: $card-border-radius;
+  box-shadow: $card-shadow;
+  padding: $card-padding;
+  width: 100%;
+  
+  @include respond-to($breakpoint-sm) {
+    padding: $card-padding-mobile;
+  }
+  
+  @include dark-mode {
+    background: $color-dark-card;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+  }
+}
+
+// Gradient background
+@mixin gradient-background {
+  background: $color-primary-gradient;
+}
+
+// ============================================================================
+// TYPOGRAPHY MIXINS
+// ============================================================================
+
+// Heading styles
+@mixin heading($size: $font-size-3xl, $weight: $font-weight-bold, $color: $color-gray-800) {
+  font-size: $size;
+  font-weight: $weight;
+  color: $color;
+  
+  @include dark-mode {
+    color: $color-dark-text;
+  }
+}
+
+// Subtitle/secondary text
+@mixin subtitle($size: $font-size-base, $color: $color-gray-500) {
+  font-size: $size;
+  color: $color;
+  
+  @include dark-mode {
+    color: $color-dark-text-muted;
+  }
+}
+
+// Text truncation with ellipsis
+@mixin text-ellipsis {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// Multi-line text truncation
+@mixin text-ellipsis-multiline($lines: 2) {
+  display: -webkit-box;
+  -webkit-line-clamp: $lines;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+// ============================================================================
+// FORM MIXINS
+// ============================================================================
+
+// Input base styles
+@mixin input-base {
+  width: 100%;
+  height: $input-height;
+  padding: $input-padding-y $input-padding-x;
+  font-size: $input-font-size;
+  color: $color-gray-800;
+  background-color: $color-white;
+  border: $input-border-width solid $color-gray-300;
+  border-radius: $input-border-radius;
+  transition: $transition-all;
+  
+  &::placeholder {
+    color: $color-gray-400;
+  }
+  
+  &:focus {
+    outline: none;
+    border-color: $color-primary-start;
+    box-shadow: $shadow-focus;
+  }
+  
+  &:disabled {
+    background-color: $color-gray-100;
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  
+  @include dark-mode {
+    background-color: $color-dark-card;
+    border-color: $color-dark-border;
+    color: $color-dark-text;
+    
+    &:focus {
+      border-color: lighten($color-primary-start, 15%);
+      background-color: $color-dark-card;
+    }
+    
+    &:disabled {
+      background-color: $color-dark-bg;
+    }
+  }
+}
+
+// Input validation states
+@mixin input-valid {
+  &.is-valid {
+    border-color: $color-success;
+    
+    &:focus {
+      box-shadow: 0 0 0 $focus-outline-width rgba($color-success, 0.25);
+    }
+  }
+}
+
+@mixin input-invalid {
+  &.is-invalid {
+    border-color: $color-error;
+    
+    &:focus {
+      border-color: $color-error;
+      box-shadow: 0 0 0 $focus-outline-width rgba($color-error, 0.1);
+    }
+  }
+}
+
+// Button base styles
+@mixin button-base {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: $spacing-sm;
+  height: $button-height;
+  padding: $button-padding-y $button-padding-x;
+  font-size: $button-font-size;
+  font-weight: $button-font-weight;
+  border: none;
+  border-radius: $button-border-radius;
+  cursor: pointer;
+  transition: $transition-all;
+  
+  &:disabled {
+    cursor: not-allowed;
+    opacity: 0.7;
+  }
+  
+  &:focus {
+    outline: none;
+    box-shadow: 0 0 0 $focus-outline-width $color-focus-ring;
+  }
+}
+
+// Primary button (gradient)
+@mixin button-primary {
+  @include button-base;
+  background: $color-primary-gradient;
+  color: $color-white;
+  
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+  }
+  
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
+}
+
+// Danger button
+@mixin button-danger {
+  @include button-base;
+  background-color: $color-error;
+  color: $color-white;
+  
+  &:hover:not(:disabled) {
+    background-color: $color-error-dark;
+  }
+}
+
+// Link button (text only)
+@mixin button-link($color: $color-primary-start) {
+  background: none;
+  border: none;
+  color: $color;
+  text-decoration: none;
+  cursor: pointer;
+  padding: $spacing-sm $spacing-lg;
+  border-radius: $border-radius-md;
+  transition: $transition-all;
+  display: inline-flex;
+  align-items: center;
+  gap: $spacing-sm;
+  
+  &:hover:not(:disabled) {
+    background-color: $color-hover-light;
+    color: darken($color, 10%);
+  }
+  
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  
+  @include focus-visible;
+  
+  @include dark-mode {
+    color: lighten($color, 15%);
+    
+    &:hover:not(:disabled) {
+      background-color: rgba(lighten($color, 15%), 0.1);
+      color: lighten($color, 25%);
+    }
+  }
+}
+
+// ============================================================================
+// ALERT/MESSAGE MIXINS
+// ============================================================================
+
+// Alert base
+@mixin alert-base {
+  padding: $spacing-lg;
+  border-radius: $border-radius-lg;
+  margin-bottom: $spacing-lg;
+  display: flex;
+  align-items: flex-start;
+  gap: $spacing-md;
+}
+
+// Alert variants
+@mixin alert-danger {
+  @include alert-base;
+  background-color: $color-error-light;
+  border: $border-width solid $color-error-border;
+  color: $color-error-darkest;
+  
+  @include dark-mode {
+    background-color: darken($color-error-darkest, 10%);
+    border-color: $color-error-darkest;
+    color: $color-error-border;
+  }
+}
+
+@mixin alert-success {
+  @include alert-base;
+  background-color: $color-success-light;
+  border: $border-width solid lighten($color-success, 20%);
+  color: darken($color-success-dark, 20%);
+}
+
+@mixin alert-warning {
+  @include alert-base;
+  background-color: $color-warning-light;
+  border: $border-width solid lighten($color-warning, 20%);
+  color: darken($color-warning-dark, 20%);
+}
+
+@mixin alert-info {
+  @include alert-base;
+  background-color: $color-info-light;
+  border: $border-width solid lighten($color-info, 20%);
+  color: darken($color-info-dark, 20%);
+}
+
+// ============================================================================
+// ANIMATION MIXINS
+// ============================================================================
+
+// Slide in from top animation
+@mixin animation-slide-in {
+  animation: slideIn $animation-slide-duration ease-out;
+  
+  @keyframes slideIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+// Shake animation (for errors)
+@mixin animation-shake {
+  animation: shake $animation-shake-duration ease-in-out;
+  
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    25% { transform: translateX(-5px); }
+    75% { transform: translateX(5px); }
+  }
+  
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+// Fade in animation
+@mixin animation-fade-in {
+  animation: fadeIn $animation-fade-duration ease-in;
+  
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+// ============================================================================
+// UTILITY MIXINS
+// ============================================================================
+
+// Clearfix
+@mixin clearfix {
+  &::after {
+    content: "";
+    display: table;
+    clear: both;
+  }
+}
+
+// Absolute positioning center
+@mixin absolute-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+// Spinner/loading indicator
+@mixin spinner {
+  width: 1rem;
+  height: 1rem;
+  border-width: 2px;
+  border-style: solid;
+  border-color: currentColor transparent transparent transparent;
+  border-radius: 50%;
+  animation: spin 0.6s linear infinite;
+  
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+  
+  @include reduced-motion {
+    animation: none;
+  }
+}
+
+// Circular avatar
+@mixin avatar($size: $avatar-size) {
+  flex-shrink: 0;
+  width: $size;
+  height: $size;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: $avatar-gradient;
+  border-radius: $border-radius-full;
+  color: $color-white;
+}
