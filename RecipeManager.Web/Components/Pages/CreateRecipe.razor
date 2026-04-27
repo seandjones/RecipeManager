@@ -1,0 +1,107 @@
+@page "/recipes/create"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject RecipeApiClient RecipeApi
+@inject NavigationManager Navigation
+
+<PageTitle>New Recipe - RecipeManager</PageTitle>
+
+<div class="d-flex align-items-center mb-4 gap-3">
+    <a href="/recipes" class="btn btn-outline-secondary btn-sm">
+        <span class="bi bi-arrow-left" aria-hidden="true"></span> Back
+    </a>
+    <h1 class="mb-0">New Recipe</h1>
+</div>
+
+@if (!string.IsNullOrEmpty(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+
+<div class="row">
+    <div class="col-lg-8">
+        <EditForm Model="model" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+            <ValidationSummary class="text-danger mb-3" />
+
+            <div class="mb-3">
+                <label class="form-label">Name <span class="text-danger">*</span></label>
+                <InputText class="form-control" @bind-Value="model.Name" placeholder="e.g. Pasta Carbonara" />
+                <ValidationMessage For="() => model.Name" class="text-danger small" />
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Description</label>
+                <InputTextArea class="form-control" @bind-Value="model.Description" rows="2"
+                               placeholder="A brief description of the recipe" />
+                <ValidationMessage For="() => model.Description" class="text-danger small" />
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-4">
+                    <label class="form-label">Prep Time (minutes)</label>
+                    <InputNumber class="form-control" @bind-Value="model.PrepTimeMinutes" />
+                    <ValidationMessage For="() => model.PrepTimeMinutes" class="text-danger small" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Cook Time (minutes)</label>
+                    <InputNumber class="form-control" @bind-Value="model.CookTimeMinutes" />
+                    <ValidationMessage For="() => model.CookTimeMinutes" class="text-danger small" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Servings</label>
+                    <InputNumber class="form-control" @bind-Value="model.Servings" />
+                    <ValidationMessage For="() => model.Servings" class="text-danger small" />
+                </div>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Ingredients <span class="text-danger">*</span></label>
+                <InputTextArea class="form-control" @bind-Value="model.Ingredients" rows="5"
+                               placeholder="List each ingredient on a new line&#10;e.g.&#10;2 cups flour&#10;1 tsp salt" />
+                <ValidationMessage For="() => model.Ingredients" class="text-danger small" />
+            </div>
+
+            <div class="mb-4">
+                <label class="form-label">Instructions <span class="text-danger">*</span></label>
+                <InputTextArea class="form-control" @bind-Value="model.Instructions" rows="7"
+                               placeholder="Write each step on a new line&#10;e.g.&#10;1. Preheat oven to 350°F&#10;2. Mix dry ingredients" />
+                <ValidationMessage For="() => model.Instructions" class="text-danger small" />
+            </div>
+
+            <div class="d-flex gap-2">
+                <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                    @if (isSubmitting)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    }
+                    Save Recipe
+                </button>
+                <a href="/recipes" class="btn btn-outline-secondary">Cancel</a>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    private readonly RecipeFormModel model = new();
+    private bool isSubmitting;
+    private string? errorMessage;
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        var created = await RecipeApi.CreateRecipeAsync(model);
+        if (created != null)
+        {
+            Navigation.NavigateTo("/recipes");
+        }
+        else
+        {
+            errorMessage = "Failed to save the recipe. Please try again.";
+            isSubmitting = false;
+        }
+    }
+}

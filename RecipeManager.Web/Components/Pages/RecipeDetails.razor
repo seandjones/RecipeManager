@@ -1,0 +1,128 @@
+@page "/recipes/{Id:int}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject RecipeApiClient RecipeApi
+@inject NavigationManager Navigation
+
+<PageTitle>@(recipe?.Name ?? "Recipe") - RecipeManager</PageTitle>
+
+@if (isLoading)
+{
+    <p class="text-muted"><em>Loading recipe...</em></p>
+}
+else if (recipe == null)
+{
+    <div class="alert alert-warning">
+        <h4>Recipe not found</h4>
+        <p>The recipe you're looking for doesn't exist or has been deleted. <a href="/recipes">Back to recipes</a></p>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center mb-4 gap-3">
+        <a href="/recipes" class="btn btn-outline-secondary btn-sm">
+            <span class="bi bi-arrow-left" aria-hidden="true"></span> Back to Recipes
+        </a>
+        <h1 class="mb-0 flex-grow-1">@recipe.Name</h1>
+        <a href="/recipes/@recipe.Id/edit" class="btn btn-outline-primary btn-sm">
+            <span class="bi bi-pencil" aria-hidden="true"></span> Edit
+        </a>
+        <button class="btn btn-outline-danger btn-sm" @onclick="ShowDeleteConfirm">
+            <span class="bi bi-trash" aria-hidden="true"></span> Delete
+        </button>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(recipe.Description))
+    {
+        <p class="lead text-muted mb-4">@recipe.Description</p>
+    }
+
+    <div class="d-flex gap-4 text-muted mb-4">
+        @if (recipe.PrepTimeMinutes.HasValue)
+        {
+            <div class="text-center">
+                <div class="fw-bold fs-5">@recipe.PrepTimeMinutes</div>
+                <div class="small">min prep</div>
+            </div>
+        }
+        @if (recipe.CookTimeMinutes.HasValue)
+        {
+            <div class="text-center">
+                <div class="fw-bold fs-5">@recipe.CookTimeMinutes</div>
+                <div class="small">min cook</div>
+            </div>
+        }
+        @if (recipe.Servings.HasValue)
+        {
+            <div class="text-center">
+                <div class="fw-bold fs-5">@recipe.Servings</div>
+                <div class="small">servings</div>
+            </div>
+        }
+    </div>
+
+    <div class="row">
+        <div class="col-md-4 mb-4">
+            <h2 class="h4 mb-3">Ingredients</h2>
+            <ul class="list-unstyled">
+                @foreach (var line in recipe.Ingredients.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <li class="mb-1">@line.Trim()</li>
+                }
+            </ul>
+        </div>
+        <div class="col-md-8 mb-4">
+            <h2 class="h4 mb-3">Instructions</h2>
+            <ol class="ps-3">
+                @foreach (var step in recipe.Instructions.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var cleaned = step.Trim().TrimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
+                    <li class="mb-2">@cleaned</li>
+                }
+            </ol>
+        </div>
+    </div>
+}
+
+@if (showDeleteConfirm)
+{
+    <div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Recipe</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@recipe?.Name</strong>? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="HideDeleteConfirm">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ExecuteDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private RecipeManager.Web.Models.Recipe? recipe;
+    private bool isLoading = true;
+    private bool showDeleteConfirm;
+
+    protected override async Task OnInitializedAsync()
+    {
+        recipe = await RecipeApi.GetRecipeAsync(Id);
+        isLoading = false;
+    }
+
+    private void ShowDeleteConfirm() => showDeleteConfirm = true;
+    private void HideDeleteConfirm() => showDeleteConfirm = false;
+
+    private async Task ExecuteDelete()
+    {
+        await RecipeApi.DeleteRecipeAsync(Id);
+        Navigation.NavigateTo("/recipes");
+    }
+}

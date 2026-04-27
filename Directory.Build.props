@@ -1,0 +1,10 @@
+<Project>
+  <ItemGroup>
+    <PackageReference Update="OpenTelemetry.Api" Version="1.15.3" />
+    <PackageReference Update="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.3" />
+    <PackageReference Update="OpenTelemetry.Extensions.Hosting" Version="1.15.3" />
+    <PackageReference Update="OpenTelemetry.Instrumentation.AspNetCore" Version="1.15.2" />
+    <PackageReference Update="OpenTelemetry.Instrumentation.Http" Version="1.15.1" />
+    <PackageReference Update="OpenTelemetry.Instrumentation.Runtime" Version="1.15.1" />
+  </ItemGroup>
+</Project>

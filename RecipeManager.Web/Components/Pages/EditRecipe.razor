@@ -1,0 +1,142 @@
+@page "/recipes/{Id:int}/edit"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inject RecipeApiClient RecipeApi
+@inject NavigationManager Navigation
+
+<PageTitle>Edit Recipe - RecipeManager</PageTitle>
+
+@if (isLoading)
+{
+    <p class="text-muted"><em>Loading recipe...</em></p>
+}
+else if (notFound)
+{
+    <div class="alert alert-warning">
+        <h4>Recipe not found</h4>
+        <p>The recipe you're trying to edit doesn't exist. <a href="/recipes">Back to recipes</a></p>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center mb-4 gap-3">
+        <a href="/recipes" class="btn btn-outline-secondary btn-sm">
+            <span class="bi bi-arrow-left" aria-hidden="true"></span> Back
+        </a>
+        <h1 class="mb-0">Edit Recipe</h1>
+    </div>
+
+    @if (!string.IsNullOrEmpty(errorMessage))
+    {
+        <div class="alert alert-danger">@errorMessage</div>
+    }
+
+    <div class="row">
+        <div class="col-lg-8">
+            <EditForm Model="model" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+                <ValidationSummary class="text-danger mb-3" />
+
+                <div class="mb-3">
+                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <InputText class="form-control" @bind-Value="model.Name" />
+                    <ValidationMessage For="() => model.Name" class="text-danger small" />
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <InputTextArea class="form-control" @bind-Value="model.Description" rows="2" />
+                    <ValidationMessage For="() => model.Description" class="text-danger small" />
+                </div>
+
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <label class="form-label">Prep Time (minutes)</label>
+                        <InputNumber class="form-control" @bind-Value="model.PrepTimeMinutes" />
+                        <ValidationMessage For="() => model.PrepTimeMinutes" class="text-danger small" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Cook Time (minutes)</label>
+                        <InputNumber class="form-control" @bind-Value="model.CookTimeMinutes" />
+                        <ValidationMessage For="() => model.CookTimeMinutes" class="text-danger small" />
+                    </div>
+                    <div class="col-md-4">
+                        <label class="form-label">Servings</label>
+                        <InputNumber class="form-control" @bind-Value="model.Servings" />
+                        <ValidationMessage For="() => model.Servings" class="text-danger small" />
+                    </div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Ingredients <span class="text-danger">*</span></label>
+                    <InputTextArea class="form-control" @bind-Value="model.Ingredients" rows="5" />
+                    <ValidationMessage For="() => model.Ingredients" class="text-danger small" />
+                </div>
+
+                <div class="mb-4">
+                    <label class="form-label">Instructions <span class="text-danger">*</span></label>
+                    <InputTextArea class="form-control" @bind-Value="model.Instructions" rows="7" />
+                    <ValidationMessage For="() => model.Instructions" class="text-danger small" />
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary" disabled="@isSubmitting">
+                        @if (isSubmitting)
+                        {
+                            <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                        }
+                        Save Changes
+                    </button>
+                    <a href="/recipes/@Id" class="btn btn-outline-secondary">Cancel</a>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private readonly RecipeFormModel model = new();
+    private bool isLoading = true;
+    private bool notFound;
+    private bool isSubmitting;
+    private string? errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var recipe = await RecipeApi.GetRecipeAsync(Id);
+        if (recipe == null)
+        {
+            notFound = true;
+        }
+        else
+        {
+            model.Name = recipe.Name;
+            model.Description = recipe.Description;
+            model.Ingredients = recipe.Ingredients;
+            model.Instructions = recipe.Instructions;
+            model.PrepTimeMinutes = recipe.PrepTimeMinutes;
+            model.CookTimeMinutes = recipe.CookTimeMinutes;
+            model.Servings = recipe.Servings;
+        }
+        isLoading = false;
+    }
+
+    private async Task HandleSubmit()
+    {
+        isSubmitting = true;
+        errorMessage = null;
+
+        var updated = await RecipeApi.UpdateRecipeAsync(Id, model);
+        if (updated != null)
+        {
+            Navigation.NavigateTo($"/recipes/{Id}");
+        }
+        else
+        {
+            errorMessage = "Failed to save changes. Please try again.";
+            isSubmitting = false;
+        }
+    }
+}

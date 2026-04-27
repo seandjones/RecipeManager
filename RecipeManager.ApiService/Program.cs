@@ -6,15 +6,11 @@ using RecipeManager.ApiService.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
-// Temporarily disabled for local development without Docker
-// builder.AddServiceDefaults();
+builder.AddServiceDefaults();
 
-// Add database context with local PostgreSQL
-// builder.AddNpgsqlDbContext<AuthDbContext>("recipedb");
-var connectionString = builder.Configuration.GetConnectionString("recipedb") 
-    ?? "Host=localhost;Port=5432;Database=recipedb;Username=recipeuser;Password=recipe_dev_password";
-builder.Services.AddDbContext<AuthDbContext>(options =>
-    options.UseNpgsql(connectionString));
+// Add database contexts via Aspire Npgsql integration
+builder.AddNpgsqlDbContext<AuthDbContext>("recipedb");
+builder.AddNpgsqlDbContext<RecipeDbContext>("recipedb");
 
 // Configure email service
 builder.Services.Configure<SendGridOptions>(builder.Configuration.GetSection("SendGrid"));
@@ -40,6 +36,18 @@ builder.Services.AddOpenApi();
 
 var app = builder.Build();
 
+// Apply pending migrations on startup (relational databases only)
+using (var scope = app.Services.CreateScope())
+{
+    var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+    if (authDb.Database.IsRelational())
+        authDb.Database.Migrate();
+
+    var recipeDb = scope.ServiceProvider.GetRequiredService<RecipeDbContext>();
+    if (recipeDb.Database.IsRelational())
+        recipeDb.Database.Migrate();
+}
+
 // Configure the HTTP request pipeline.
 app.UseExceptionHandler();
 
@@ -52,8 +60,7 @@ app.MapGet("/", () => "API service is running.");
 
 // Authentication endpoints
 var authGroup = app.MapGroup("/api/auth")
-    .WithTags("Authentication")
-    .WithOpenApi();
+    .WithTags("Authentication");
 
 authGroup.MapPost("/request-code", async (
     RequestLoginCodeRequest request,
@@ -147,8 +154,100 @@ authGroup.MapPost("/logout", () =>
 .WithDescription("Invalidates the current session. In passwordless authentication, this is primarily a client-side operation.")
 .Produces(200);
 
-// Temporarily disabled for local development without Docker
-// app.MapDefaultEndpoints();
+app.MapDefaultEndpoints();
+
+// Recipe endpoints
+var recipeGroup = app.MapGroup("/api/recipes")
+    .WithTags("Recipes");
+
+recipeGroup.MapGet("/", async (RecipeDbContext db, CancellationToken cancellationToken) =>
+{
+    var recipes = await db.Recipes.OrderByDescending(r => r.CreatedAt).ToListAsync(cancellationToken);
+    return Results.Ok(recipes);
+})
+.WithName("GetRecipes")
+.WithSummary("Get all recipes")
+.Produces<List<Recipe>>(200);
+
+recipeGroup.MapGet("/{id:int}", async (int id, RecipeDbContext db, CancellationToken cancellationToken) =>
+{
+    var recipe = await db.Recipes.FindAsync([id], cancellationToken);
+    return recipe is null ? Results.NotFound() : Results.Ok(recipe);
+})
+.WithName("GetRecipe")
+.WithSummary("Get a recipe by ID")
+.Produces<Recipe>(200)
+.Produces(404);
+
+recipeGroup.MapPost("/", async (RecipeRequest request, RecipeDbContext db, CancellationToken cancellationToken) =>
+{
+    if (string.IsNullOrWhiteSpace(request.Name))
+        return Results.BadRequest(new { error = "Name is required." });
+
+    var recipe = new Recipe
+    {
+        Name = request.Name.Trim(),
+        Description = request.Description?.Trim(),
+        Ingredients = request.Ingredients,
+        Instructions = request.Instructions,
+        PrepTimeMinutes = request.PrepTimeMinutes,
+        CookTimeMinutes = request.CookTimeMinutes,
+        Servings = request.Servings,
+        CreatedAt = DateTime.UtcNow,
+        UpdatedAt = DateTime.UtcNow
+    };
+
+    db.Recipes.Add(recipe);
+    await db.SaveChangesAsync(cancellationToken);
+
+    return Results.Created($"/api/recipes/{recipe.Id}", recipe);
+})
+.WithName("CreateRecipe")
+.WithSummary("Create a new recipe")
+.Produces<Recipe>(201)
+.Produces(400);
+
+recipeGroup.MapPut("/{id:int}", async (int id, RecipeRequest request, RecipeDbContext db, CancellationToken cancellationToken) =>
+{
+    var recipe = await db.Recipes.FindAsync([id], cancellationToken);
+    if (recipe is null)
+        return Results.NotFound();
+
+    if (string.IsNullOrWhiteSpace(request.Name))
+        return Results.BadRequest(new { error = "Name is required." });
+
+    recipe.Name = request.Name.Trim();
+    recipe.Description = request.Description?.Trim();
+    recipe.Ingredients = request.Ingredients;
+    recipe.Instructions = request.Instructions;
+    recipe.PrepTimeMinutes = request.PrepTimeMinutes;
+    recipe.CookTimeMinutes = request.CookTimeMinutes;
+    recipe.Servings = request.Servings;
+    recipe.UpdatedAt = DateTime.UtcNow;
+
+    await db.SaveChangesAsync(cancellationToken);
+    return Results.Ok(recipe);
+})
+.WithName("UpdateRecipe")
+.WithSummary("Update a recipe")
+.Produces<Recipe>(200)
+.Produces(400)
+.Produces(404);
+
+recipeGroup.MapDelete("/{id:int}", async (int id, RecipeDbContext db, CancellationToken cancellationToken) =>
+{
+    var recipe = await db.Recipes.FindAsync([id], cancellationToken);
+    if (recipe is null)
+        return Results.NotFound();
+
+    db.Recipes.Remove(recipe);
+    await db.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("DeleteRecipe")
+.WithSummary("Delete a recipe")
+.Produces(204)
+.Produces(404);
 
 app.Run();
 

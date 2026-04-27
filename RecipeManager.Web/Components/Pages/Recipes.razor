@@ -1,0 +1,117 @@
+@page "/recipes"
+@attribute [Authorize]
+@attribute [StreamRendering(true)]
+@rendermode InteractiveServer
+@inject RecipeApiClient RecipeApi
+@inject NavigationManager Navigation
+
+<PageTitle>Recipes - RecipeManager</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Recipes</h1>
+    <a href="/recipes/create" class="btn btn-primary">
+        <span class="bi bi-plus-circle" aria-hidden="true"></span> New Recipe
+    </a>
+</div>
+
+@if (recipes == null)
+{
+    <p class="text-muted"><em>Loading recipes...</em></p>
+}
+else if (recipes.Length == 0)
+{
+    <div class="alert alert-info">
+        <p class="mb-0">No recipes yet. <a href="/recipes/create">Create your first recipe!</a></p>
+    </div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4">
+        @foreach (var recipe in recipes)
+        {
+            <div class="col">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h5 class="card-title">@recipe.Name</h5>
+                        @if (!string.IsNullOrWhiteSpace(recipe.Description))
+                        {
+                            <p class="card-text text-muted small">@recipe.Description</p>
+                        }
+                        <div class="d-flex gap-3 text-muted small mt-2">
+                            @if (recipe.PrepTimeMinutes.HasValue)
+                            {
+                                <span><span class="bi bi-clock" aria-hidden="true"></span> Prep: @recipe.PrepTimeMinutes min</span>
+                            }
+                            @if (recipe.CookTimeMinutes.HasValue)
+                            {
+                                <span><span class="bi bi-fire" aria-hidden="true"></span> Cook: @recipe.CookTimeMinutes min</span>
+                            }
+                            @if (recipe.Servings.HasValue)
+                            {
+                                <span><span class="bi bi-people" aria-hidden="true"></span> @recipe.Servings servings</span>
+                            }
+                        </div>
+                    </div>
+                    <div class="card-footer d-flex gap-2">
+                        <a href="/recipes/@recipe.Id" class="btn btn-sm btn-outline-secondary">View</a>
+                        <a href="/recipes/@recipe.Id/edit" class="btn btn-sm btn-outline-primary">Edit</a>
+                        <button class="btn btn-sm btn-outline-danger ms-auto"
+                                @onclick="() => ConfirmDelete(recipe.Id, recipe.Name)">Delete</button>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@if (deleteTargetId.HasValue)
+{
+    <div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Recipe</h5>
+                </div>
+                <div class="modal-body">
+                    <p>Are you sure you want to delete <strong>@deleteTargetName</strong>? This cannot be undone.</p>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" @onclick="CancelDelete">Cancel</button>
+                    <button class="btn btn-danger" @onclick="ExecuteDelete">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+@code {
+    private RecipeManager.Web.Models.Recipe[]? recipes;
+    private int? deleteTargetId;
+    private string? deleteTargetName;
+
+    protected override async Task OnInitializedAsync()
+    {
+        recipes = await RecipeApi.GetRecipesAsync();
+    }
+
+    private void ConfirmDelete(int id, string name)
+    {
+        deleteTargetId = id;
+        deleteTargetName = name;
+    }
+
+    private void CancelDelete()
+    {
+        deleteTargetId = null;
+        deleteTargetName = null;
+    }
+
+    private async Task ExecuteDelete()
+    {
+        if (!deleteTargetId.HasValue) return;
+        await RecipeApi.DeleteRecipeAsync(deleteTargetId.Value);
+        deleteTargetId = null;
+        deleteTargetName = null;
+        recipes = await RecipeApi.GetRecipesAsync();
+    }
+}

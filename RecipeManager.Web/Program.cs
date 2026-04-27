@@ -7,9 +7,8 @@ using RecipeManager.Web.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 // Add service defaults & Aspire client integrations.
-// Temporarily disabled for local development without Docker
-// builder.AddServiceDefaults();
-// builder.AddRedisOutputCache("cache");
+builder.AddServiceDefaults();
+builder.AddRedisOutputCache("cache");
 
 // Configure authentication
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
@@ -42,8 +41,13 @@ builder.Services.AddRazorComponents()
 // Register AuthApiClient for authentication API calls
 builder.Services.AddHttpClient<AuthApiClient>(client =>
     {
-        // For local development without Aspire service discovery
-        client.BaseAddress = new("https://localhost:7000");
+        client.BaseAddress = new("https+http://apiservice");
+    });
+
+// Register RecipeApiClient
+builder.Services.AddHttpClient<RecipeApiClient>(client =>
+    {
+        client.BaseAddress = new("https+http://apiservice");
     });
 
 var app = builder.Build();
@@ -62,15 +66,13 @@ app.UseAuthorization();
 
 app.UseAntiforgery();
 
-// Temporarily disabled - Redis not available without Docker
-// app.UseOutputCache();
+app.UseOutputCache();
 
 app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 
-// Temporarily disabled for local development without Docker
-// app.MapDefaultEndpoints();
+app.MapDefaultEndpoints();
 
 app.Run();

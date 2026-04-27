@@ -1009,3 +1009,37 @@ System is production-ready with excellent developer experience! 🚀
 ---
 
 <!-- New entries go above this line -->
+
+---
+
+## 2026-04-26 - Recipe CRUD Complete (Plan: example-add-recipe-crud, All Tasks)
+
+Implemented full Recipe CRUD feature across all 8 tasks.
+
+**Files Changed:**
+- RecipeManager.AppHost/AppHost.cs (added .WaitFor(postgres) to apiService)
+- RecipeManager.ApiService/Data/Recipe.cs (created Recipe entity)
+- RecipeManager.ApiService/Data/RecipeDbContext.cs (created RecipeDbContext)
+- RecipeManager.ApiService/Models/RecipeModels.cs (created RecipeRequest model)
+- RecipeManager.ApiService/Migrations/Recipe/20260426192115_InitialRecipes.cs (created)
+- RecipeManager.ApiService/Program.cs (registered RecipeDbContext, added CRUD endpoints, guarded Migrate with IsRelational)
+- RecipeManager.Web/Models/RecipeModels.cs (created Recipe + RecipeFormModel)
+- RecipeManager.Web/Services/RecipeApiClient.cs (created typed HTTP client)
+- RecipeManager.Web/Program.cs (registered RecipeApiClient)
+- RecipeManager.Web/Components/Pages/Recipes.razor (list page with delete confirm modal)
+- RecipeManager.Web/Components/Pages/CreateRecipe.razor (create form)
+- RecipeManager.Web/Components/Pages/EditRecipe.razor (edit form with pre-population)
+- RecipeManager.Web/Components/Pages/RecipeDetails.razor (details view)
+- RecipeManager.Web/Components/Layout/NavMenu.razor (added Recipes nav link)
+- RecipeManager.Tests/RecipeApiTests.cs (10 integration tests)
+
+**Test Results:**
+- RecipeApiTests: 10/10 passing
+- Total suite: 52 passing, 8 pre-existing failures
+
+**Gotchas/Notes:**
+- EF Core dual-provider conflict: WebApplicationFactory tests that swap DbContext with InMemory fail because Npgsql extension services (IDbContextOptions extensions) remain in the DI container after the original AddDbContext call. The InMemory provider then conflicts with Npgsql in EF Core's internal service provider. Worked around by writing tests that directly construct RecipeDbContext with in-memory options (same as AuthServiceTests pattern).
+- Database.IsRelational() itself throws when both Npgsql and InMemory are registered in DI. Used try/catch around migration block as fallback protection.
+- Pre-existing test failures (AuthFlowIntegrationTests, WebTests) have same dual-provider issue — not caused by this work.
+
+**Next:** Plan complete — all 8 tasks finished!

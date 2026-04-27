@@ -3,14 +3,14 @@
   "title": "Add Recipe CRUD Operations (Example)",
   "category": "feature",
   "created_at": "2026-04-12T12:00:00Z",
-  "status": "pending",
+  "status": "complete",
   "description": "Implement complete CRUD (Create, Read, Update, Delete) operations for recipe management. This includes database models, API endpoints, HTTP clients, and Blazor UI components. This is an EXAMPLE plan to demonstrate the harness workflow.",
   "verification_command": "dotnet test",
   "tasks": [
     {
       "id": 1,
       "title": "Add PostgreSQL database to AppHost",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "PostgreSQL resource added to AppHost.cs using AddPostgres",
         "Database named 'recipedb' created",
@@ -23,7 +23,7 @@
     {
       "id": 2,
       "title": "Create Recipe domain model and database context",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "Recipe entity class created with properties: Id, Name, Description, Ingredients, Instructions, PrepTimeMinutes, CookTimeMinutes, Servings, CreatedAt, UpdatedAt",
         "RecipeDbContext class created inheriting from DbContext",
@@ -37,7 +37,7 @@
     {
       "id": 3,
       "title": "Implement Recipe API endpoints with integration tests",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "GET /api/recipes endpoint returns 200 with array of recipes",
         "GET /api/recipes/{id} endpoint returns 200 with recipe or 404 if not found",
@@ -54,7 +54,7 @@
     {
       "id": 4,
       "title": "Create RecipeApiClient in Web project",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "RecipeApiClient class created in RecipeManager.Web using primary constructor with HttpClient",
         "GetRecipesAsync method returns Recipe[] from GET /api/recipes",
@@ -71,7 +71,7 @@
     {
       "id": 5,
       "title": "Build Recipes list page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "Recipes.razor component created in RecipeManager.Web/Components/Pages/",
         "Page accessible at /recipes route with @page directive",
@@ -90,7 +90,7 @@
     {
       "id": 6,
       "title": "Build Create Recipe form page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "CreateRecipe.razor component created at /recipes/create",
         "EditForm component used with RecipeFormModel",
@@ -109,7 +109,7 @@
     {
       "id": 7,
       "title": "Build Edit Recipe form page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "EditRecipe.razor component created at /recipes/{id:int}/edit",
         "Loads existing recipe data on initialization using RecipeApiClient.GetRecipeAsync",
@@ -127,7 +127,7 @@
     {
       "id": 8,
       "title": "Build Recipe details view page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "RecipeDetails.razor component created at /recipes/{id:int}",
         "Loads recipe data using RecipeApiClient.GetRecipeAsync",
