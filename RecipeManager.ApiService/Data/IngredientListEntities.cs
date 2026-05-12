@@ -78,7 +78,7 @@ public class RecipeIngredientList
     /// <summary>
     /// ID of the recipe (from RecipeDbContext).
     /// </summary>
-    public Guid RecipeId { get; set; }
+    public int RecipeId { get; set; }
     
     /// <summary>
     /// When this recipe was added to the list.
@@ -92,6 +92,8 @@ public class RecipeIngredientList
     
     // Navigation property
     public IngredientList? IngredientList { get; set; }
+
+    public Recipe? Recipe { get; set; }
 }
 
 /// <summary>

@@ -17,10 +17,11 @@ if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<AuthDb
 if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<RecipeDbContext>)))
 {
     builder.AddNpgsqlDbContext<RecipeDbContext>("recipedb");
+}
+
 if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<IngredientListDbContext>)))
 {
     builder.AddNpgsqlDbContext<IngredientListDbContext>("recipedb");
-}
 }
 
 // Configure email service

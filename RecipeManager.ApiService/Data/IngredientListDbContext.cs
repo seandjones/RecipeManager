@@ -83,6 +83,16 @@ public class IngredientListDbContext : DbContext
             entity.HasIndex(e => e.IngredientListId);
             entity.HasIndex(e => e.RecipeId);
             entity.HasIndex(e => new { e.IngredientListId, e.RecipeId }).IsUnique();
+
+            entity.HasOne(e => e.Recipe)
+                .WithMany()
+                .HasForeignKey(e => e.RecipeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<Recipe>(entity =>
+        {
+            entity.ToTable("Recipes", t => t.ExcludeFromMigrations());
         });
 
         // ListSharing configuration

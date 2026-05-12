@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using RecipeManager.ApiService.Data;
 using System.ComponentModel.DataAnnotations;
+using System.Data.Common;
+using System.Diagnostics;
+using System.Text;
 
 namespace RecipeManager.Tests;
 
@@ -119,6 +122,120 @@ public class IngredientListSchemaTests
         Assert.IsTrue(entityType.FindProperty("RecipeId") != null, "RecipeIngredientList should have RecipeId property");
         Assert.IsTrue(entityType.FindProperty("AddedAt") != null, "RecipeIngredientList should have AddedAt property");
         Assert.IsTrue(entityType.FindProperty("AddedByUserId") != null, "RecipeIngredientList should have AddedByUserId property");
+        Assert.AreEqual(typeof(int), entityType.FindProperty("RecipeId")?.ClrType, "RecipeIngredientList.RecipeId should match Recipe.Id type");
+    }
+
+    [TestMethod]
+    public async Task PostgreSqlSchema_HasIngredientListTables()
+    {
+        var containerName = $"recipemanager-ingredientlist-test-{Guid.NewGuid():N}";
+        var password = "recipe_test_password";
+
+        await RunDockerCommandAsync(
+            $"run -d --name {containerName} -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD={password} -e POSTGRES_DB=recipedb -P postgres:17.6");
+
+        try
+        {
+            var connectionString = await WaitForContainerConnectionStringAsync(containerName, password);
+            var options = new DbContextOptionsBuilder<IngredientListDbContext>()
+                .UseNpgsql(connectionString)
+                .Options;
+
+            var recipeOptions = new DbContextOptionsBuilder<RecipeDbContext>()
+                .UseNpgsql(connectionString)
+                .Options;
+
+            await using (var recipeContext = new RecipeDbContext(recipeOptions))
+            {
+                await recipeContext.Database.MigrateAsync(CancellationToken.None);
+            }
+
+            await using var context = new IngredientListDbContext(options);
+            await context.Database.MigrateAsync(CancellationToken.None);
+
+            var expectedTables = new[]
+            {
+                "IngredientLists",
+                "Ingredients",
+                "RecipeIngredientLists",
+                "ListSharings",
+                "ListShareTokens"
+            };
+
+            foreach (var tableName in expectedTables)
+            {
+                var exists = await context.Database
+                    .SqlQueryRaw<int>(
+                        $"SELECT COUNT(*) AS \"Value\" FROM information_schema.tables WHERE table_name = '{tableName}'")
+                    .SingleAsync(CancellationToken.None);
+
+                Assert.AreEqual(1, exists, $"Expected PostgreSQL table '{tableName}' to exist");
+            }
+        }
+        finally
+        {
+            await RunDockerCommandAsync($"rm -f {containerName}");
+        }
+    }
+
+    private static async Task<string> WaitForContainerConnectionStringAsync(string containerName, string password)
+    {
+        for (var attempt = 0; attempt < 30; attempt++)
+        {
+            var portOutput = await RunDockerCommandAsync($"port {containerName} 5432/tcp");
+            var port = portOutput
+                .Split(new[] { '\r', '\n' }, StringSplitOptions.RemoveEmptyEntries)
+                .Select(line => line[(line.LastIndexOf(':') + 1)..])
+                .FirstOrDefault();
+
+            if (!string.IsNullOrWhiteSpace(port))
+            {
+                var connectionString = $"Host=localhost;Port={port};Database=recipedb;Username=postgres;Password={password}";
+                var options = new DbContextOptionsBuilder<IngredientListDbContext>()
+                    .UseNpgsql(connectionString)
+                    .Options;
+
+                await using var context = new IngredientListDbContext(options);
+                if (await context.Database.CanConnectAsync())
+                {
+                    return connectionString;
+                }
+            }
+
+            await Task.Delay(TimeSpan.FromSeconds(1));
+        }
+
+        Assert.Fail("Timed out waiting for the temporary PostgreSQL container to become ready.");
+        return string.Empty;
+    }
+
+    private static async Task<string> RunDockerCommandAsync(string arguments)
+    {
+        var startInfo = new ProcessStartInfo("docker", arguments)
+        {
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+
+        using var process = Process.Start(startInfo);
+        Assert.IsNotNull(process, "Failed to start docker process.");
+
+        var outputBuilder = new StringBuilder();
+        var errorBuilder = new StringBuilder();
+
+        outputBuilder.Append(await process.StandardOutput.ReadToEndAsync());
+        errorBuilder.Append(await process.StandardError.ReadToEndAsync());
+
+        await process.WaitForExitAsync();
+
+        if (process.ExitCode != 0)
+        {
+            Assert.Fail($"docker {arguments} failed with exit code {process.ExitCode}: {errorBuilder}");
+        }
+
+        return outputBuilder.ToString();
     }
 
     // ListSharing entity tests

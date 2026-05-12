@@ -121,6 +121,28 @@ Created the ingredient list schema and split it into staged EF Core migrations f
 - PostgreSQL used the Aspire-generated container password from the running postgres container.
 
 **Next:** Task #2 - Create DbContext configurations and register in ApiService Program.cs
+
+## 2026-05-12 - Create DbContext configurations and register in ApiService Program.cs (Plan: add-shared-ingredient-lists, Task #2)
+
+Wired `IngredientListDbContext` into the API startup, aligned the recipe-junction model to the `Recipe` entity, and verified the ingredient-list schema against a real PostgreSQL database using a self-contained integration test that provisions a temporary container.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512224319_FixRecipeIngredientListRecipeIdType.cs
+- RecipeManager.Tests/IngredientListSchemaTests.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512230000_InitialIngredientLists.cs
+
+**Test Results:**
+- IngredientListSchemaTests: 17/17 passed
+- PostgreSQL schema verification: passed against a temporary Docker container
+
+**Gotchas/Notes:**
+- The recipe junction needed a follow-up migration to replace the GUID `RecipeId` with the `Recipe` entity's integer key and to add the foreign key cleanly.
+- The PostgreSQL verification test now provisions its own container, which avoids depending on an already-running local database.
+
+**Next:** Task #3 - Set up SignalR hub for real-time ingredient list synchronization
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
