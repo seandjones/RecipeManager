@@ -1,0 +1,235 @@
+{
+  "slug": "add-shared-ingredient-lists",
+  "title": "Add Shared Ingredient Lists with Real-Time Synchronization",
+  "category": "feature",
+  "created_at": "2026-05-12T00:00:00Z",
+  "status": "pending",
+  "description": "Implement ingredient list management with real-time synchronization using SignalR. Users can create ingredient lists (with or without associated recipes), add multiple recipes to lists (N:N relationship), add ingredients with checkboxes, and share lists via email invitation or shareable links. Checkbox state is synchronized in real-time across all users viewing the same list.",
+  "verification_command": "dotnet test",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Design and create database schema for ingredient lists and sharing",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientList entity created with Id, Name, Description, OwnerId, CreatedAt, UpdatedAt properties",
+        "Ingredient entity created with Id, IngredientListId, Name, Quantity, Unit, IsChecked, CreatedAt properties",
+        "RecipeIngredientList junction table created to support N:N relationship between recipes and ingredient lists",
+        "ListSharing entity created with Id, IngredientListId, SharedWithUserId, ShareType (Email|Link), AccessLevel, CreatedAt properties",
+        "ListShareToken entity created with Id, IngredientListId, Token, ExpiresAt, CreatedAt for shareable links",
+        "All entities have proper indexes on foreign keys and frequently queried fields",
+        "EF Core migration created and applies successfully",
+        "PostgreSQL database updated with new tables"
+      ],
+      "notes": null
+    },
+    {
+      "id": 2,
+      "title": "Create DbContext configurations and register in ApiService Program.cs",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListDbContext created with DbSets for all new entities",
+        "Fluent API configured for relationships (IngredientList -> Ingredient, IngredientList -> Recipe via junction)",
+        "OnDelete cascade behaviors configured appropriately",
+        "DbContext registered in ApiService Program.cs with AddNpgsqlDbContext",
+        "Migration named InitialIngredientLists created and applied",
+        "Database schema verified in PostgreSQL"
+      ],
+      "notes": null
+    },
+    {
+      "id": 3,
+      "title": "Set up SignalR hub for real-time ingredient list synchronization",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListHub created in ApiService.Services with SignalR Hub<IIngredientListClient> inheritance",
+        "Hub methods: JoinListGroup(listId), LeaveListGroup(listId), UpdateIngredientCheckState(listId, ingredientId, isChecked)",
+        "Hub methods: AddIngredient(listId, ingredient), RemoveIngredient(listId, ingredientId), UpdateIngredientDetails(listId, ingredientId, name, quantity, unit)",
+        "Hub methods: AddRecipeToList(listId, recipeId), RemoveRecipeFromList(listId, recipeId)",
+        "SignalR group management for per-list real-time updates (GroupName: ingredient-list-{listId})",
+        "Authentication check on hub methods to prevent unauthorized access",
+        "IIngredientListClient interface defined with methods for client-side callbacks",
+        "Hub registered in Program.cs with app.MapHub<IngredientListHub>(\"/hubs/ingredient-list\")"
+      ],
+      "notes": null
+    },
+    {
+      "id": 4,
+      "title": "Implement API endpoints for ingredient list CRUD operations",
+      "status": "pending",
+      "acceptance_criteria": [
+        "POST /api/ingredient-lists - Create new ingredient list (authenticated, sets OwnerId to current user)",
+        "GET /api/ingredient-lists - List all ingredient lists current user owns or has access to",
+        "GET /api/ingredient-lists/{id} - Get single ingredient list with all ingredients and associated recipes",
+        "PUT /api/ingredient-lists/{id} - Update ingredient list name/description (owner only)",
+        "DELETE /api/ingredient-lists/{id} - Delete ingredient list (owner only)",
+        "POST /api/ingredient-lists/{id}/ingredients - Add ingredient to list",
+        "PUT /api/ingredient-lists/{id}/ingredients/{ingredientId} - Update ingredient (name, quantity, unit, isChecked)",
+        "DELETE /api/ingredient-lists/{id}/ingredients/{ingredientId} - Delete ingredient from list",
+        "POST /api/ingredient-lists/{id}/recipes - Add recipe to ingredient list",
+        "DELETE /api/ingredient-lists/{id}/recipes/{recipeId} - Remove recipe from ingredient list",
+        "All endpoints have OpenAPI documentation with .WithName() and .WithOpenApi()",
+        "Proper authorization checks (only owner or shared user can access)",
+        "Input validation with meaningful error messages",
+        "Integration tests verify all CRUD operations"
+      ],
+      "notes": null
+    },
+    {
+      "id": 5,
+      "title": "Implement ingredient list sharing (email invitation and shareable links)",
+      "status": "pending",
+      "acceptance_criteria": [
+        "POST /api/ingredient-lists/{id}/share/email - Send email invitation to share list",
+        "Email invitation includes link with token to accept sharing",
+        "POST /api/ingredient-lists/{id}/share/link - Generate shareable link token",
+        "GET /api/ingredient-lists/shared/{token} - Allow guest access to list via shareable link (read-only or edit based on AccessLevel)",
+        "GET /api/ingredient-lists/{id}/sharing - List all active shares for ingredient list (owner only)",
+        "DELETE /api/ingredient-lists/{id}/sharing/{shareId} - Revoke access for a shared user (owner only)",
+        "Sharing includes access level: Viewer (read-only) or Editor (can modify ingredients/checkboxes)",
+        "Email service integration to send invitation emails",
+        "ListShareToken validates expiration and prevents expired link access",
+        "Integration tests verify sharing workflows"
+      ],
+      "notes": null
+    },
+    {
+      "id": 6,
+      "title": "Create IngredientListApiClient in Web project with service discovery",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListApiClient class created using primary constructor with HttpClient",
+        "GetListsAsync() returns IngredientList[] (owned and shared lists)",
+        "GetListAsync(id) returns IngredientList with ingredients and recipes",
+        "CreateListAsync(IngredientListRequest) creates new list",
+        "UpdateListAsync(id, IngredientListRequest) updates list",
+        "DeleteListAsync(id) deletes list",
+        "AddIngredientAsync(listId, IngredientRequest) adds ingredient to list",
+        "UpdateIngredientAsync(listId, ingredientId, IngredientRequest) updates ingredient",
+        "DeleteIngredientAsync(listId, ingredientId) removes ingredient",
+        "AddRecipeToListAsync(listId, recipeId) associates recipe with list",
+        "RemoveRecipeFromListAsync(listId, recipeId) removes recipe from list",
+        "ShareListViaEmailAsync(listId, email, accessLevel) invites user",
+        "GenerateShareLinkAsync(listId, accessLevel) generates shareable link",
+        "GetSharedAccessAsync(token) gets list via share token",
+        "All methods support CancellationToken",
+        "Registered in Web/Program.cs with AddHttpClient and service discovery"
+      ],
+      "notes": null
+    },
+    {
+      "id": 7,
+      "title": "Create SignalR client setup in Web project for real-time updates",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListSignalRClient class created to manage SignalR connection lifecycle",
+        "InitializeAsync(listId) establishes connection and joins list group",
+        "DisconnectAsync(listId) leaves group and closes connection",
+        "Event handlers for OnIngredientUpdated, OnIngredientAdded, OnIngredientRemoved, OnRecipeAdded, OnRecipeRemoved",
+        "Methods to send updates: UpdateIngredientCheckStateAsync, AddIngredientAsync, RemoveIngredientAsync, AddRecipeAsync, RemoveRecipeAsync",
+        "Reconnection logic with exponential backoff on disconnection",
+        "Registered in Web/Program.cs as scoped service"
+      ],
+      "notes": null
+    },
+    {
+      "id": 8,
+      "title": "Build IngredientList detail/management page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListDetail.razor component created at /ingredient-lists/{id}",
+        "@page directive with id route parameter",
+        "@attribute [Authorize] to restrict to authenticated users",
+        "@attribute [StreamRendering(true)] for streaming",
+        "IngredientListApiClient injected to fetch list data",
+        "SignalRClient injected to subscribe to real-time updates",
+        "Display ingredient list name and description at top",
+        "Display associated recipes with links to recipe details",
+        "Ingredients displayed in table/list with Name, Quantity, Unit, Checkbox",
+        "Checkbox toggles in real-time, updates visible to all users",
+        "Add ingredient form with Name, Quantity, Unit inputs",
+        "Remove ingredient buttons (if authorized)",
+        "Add existing recipe to list selector",
+        "Remove recipe from list buttons",
+        "Share list button that opens share modal (owner only)",
+        "Edit list name/description form (owner only)",
+        "Delete list button (owner only)",
+        "Loading states while fetching/updating",
+        "Error handling with user-friendly messages",
+        "Page renders successfully and real-time updates work"
+      ],
+      "notes": null
+    },
+    {
+      "id": 9,
+      "title": "Build ingredient lists index/discovery page",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientLists.razor component created at /ingredient-lists",
+        "@page directive",
+        "@attribute [Authorize]",
+        "@attribute [StreamRendering(true)]",
+        "Display tabs/sections: My Lists (owned) and Shared With Me",
+        "List owned ingredient lists in cards/table showing Name, Description, Created date, Recipe count, Shared count",
+        "List shared ingredient lists showing Name, Shared by, Access level",
+        "Create New Ingredient List button/link",
+        "Edit and Delete buttons for owned lists",
+        "Click on list opens detail page (/ingredient-lists/{id})",
+        "NavLink added to NavMenu.razor for /ingredient-lists route",
+        "Loading state while fetching lists",
+        "Empty state message when no lists exist",
+        "Page renders successfully"
+      ],
+      "notes": null
+    },
+    {
+      "id": 10,
+      "title": "Implement share modal and link/email invitation UI",
+      "status": "pending",
+      "acceptance_criteria": [
+        "ShareIngredientListModal.razor component created for share dialog",
+        "Two tabs: Email Invite and Shareable Link",
+        "Email Invite tab: Input for email address, dropdown for access level (Viewer/Editor), Send button",
+        "Shareable Link tab: Generate button, displays link, copy-to-clipboard button, expiration settings",
+        "Success/error messages for share operations",
+        "Integration with IngredientListApiClient for sending invitations",
+        "Modal integrates into IngredientListDetail page",
+        "Only list owner sees share buttons",
+        "Share operations trigger real-time notifications (optional enhancement)"
+      ],
+      "notes": null
+    },
+    {
+      "id": 11,
+      "title": "Create integration tests for ingredient lists and sharing",
+      "status": "pending",
+      "acceptance_criteria": [
+        "IngredientListApiTests.cs created with integration tests",
+        "Tests verify CRUD operations on ingredient lists",
+        "Tests verify ingredient add/update/delete operations",
+        "Tests verify recipe-to-list associations",
+        "Tests verify authorization (owner can modify, non-owner cannot)",
+        "Tests verify sharing workflows (email invitation, shareable links)",
+        "Tests verify access control (shared users can view/edit based on permission)",
+        "Tests verify real-time events fire correctly when data changes",
+        "Minimum 15 tests covering happy paths and error cases",
+        "All tests pass successfully"
+      ],
+      "notes": null
+    },
+    {
+      "id": 12,
+      "title": "Update Copilot instructions with ingredient list architecture and patterns",
+      "status": "pending",
+      "acceptance_criteria": [
+        ".github/copilot-instructions.md updated with new patterns",
+        "Ingredient List data model documented",
+        "SignalR integration pattern documented with code example",
+        "Real-time synchronization pattern explained",
+        "Sharing/authorization pattern documented",
+        "API client pattern for real-time features documented"
+      ],
+      "notes": null
+    }
+  ]
+}

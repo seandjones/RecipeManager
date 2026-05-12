@@ -9,8 +9,15 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddServiceDefaults();
 
 // Add database contexts via Aspire Npgsql integration
-builder.AddNpgsqlDbContext<AuthDbContext>("recipedb");
-builder.AddNpgsqlDbContext<RecipeDbContext>("recipedb");
+// Skip if running under WebApplicationFactory (test environment)
+if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<AuthDbContext>)))
+{
+    builder.AddNpgsqlDbContext<AuthDbContext>("recipedb");
+}
+if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<RecipeDbContext>)))
+{
+    builder.AddNpgsqlDbContext<RecipeDbContext>("recipedb");
+}
 
 // Configure email service
 builder.Services.Configure<SendGridOptions>(builder.Configuration.GetSection("SendGrid"));

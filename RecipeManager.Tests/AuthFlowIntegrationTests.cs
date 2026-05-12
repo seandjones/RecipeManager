@@ -24,25 +24,36 @@ public class AuthFlowIntegrationTests
     [TestInitialize]
     public void Initialize()
     {
+        var inMemoryDbName = Guid.NewGuid().ToString();
         _factory = new WebApplicationFactory<ApiServiceProgram>()
             .WithWebHostBuilder(builder =>
             {
                 builder.ConfigureServices(services =>
                 {
-                    // Remove existing DbContext registration
-                    var descriptor = services.SingleOrDefault(
-                        d => d.ServiceType == typeof(DbContextOptions<AuthDbContext>));
+                    // Remove all EF Core registrations
+                    var toRemove = services
+                        .Where(s => s.ServiceType.FullName?.Contains("EntityFrameworkCore") == true ||
+                                    s.ServiceType == typeof(AuthDbContext) ||
+                                    s.ServiceType == typeof(RecipeDbContext) ||
+                                    s.ServiceType == typeof(DbContextOptions<AuthDbContext>) ||
+                                    s.ServiceType == typeof(DbContextOptions<RecipeDbContext>))
+                        .ToList();
 
-                    if (descriptor != null)
+                    foreach (var service in toRemove)
                     {
-                        services.Remove(descriptor);
+                        services.Remove(service);
                     }
 
-                    // Add in-memory database for testing
+                    // Re-register with InMemory provider
                     services.AddDbContext<AuthDbContext>(options =>
-                    {
-                        options.UseInMemoryDatabase("AuthFlowTestDb_" + Guid.NewGuid());
-                    });
+                        options.UseInMemoryDatabase(inMemoryDbName + "_Auth"),
+                        contextLifetime: ServiceLifetime.Scoped,
+                        optionsLifetime: ServiceLifetime.Scoped);
+
+                    services.AddDbContext<RecipeDbContext>(options =>
+                        options.UseInMemoryDatabase(inMemoryDbName + "_Recipe"),
+                        contextLifetime: ServiceLifetime.Scoped,
+                        optionsLifetime: ServiceLifetime.Scoped);
 
                     // Replace email service with test implementation
                     var emailServiceDescriptor = services.SingleOrDefault(
