@@ -98,6 +98,29 @@ Added PostgreSQL database infrastructure to RecipeManager Aspire application.
 **Implementation Details:**
 - PostgreSQL resource created with `.AddPostgres("postgres").WithDataVolume()`
 - Database 'recipedb' created via `.AddDatabase("recipedb")`
+
+## 2026-05-12 - Design and create database schema for ingredient lists and sharing (Plan: add-shared-ingredient-lists, Task #1)
+
+Created the ingredient list schema and split it into staged EF Core migrations for the base list/items tables, the recipe junction table, and the sharing tables. Added schema tests covering entity surfaces, DbSets, relationships, indexes, and cascade behavior.
+
+**Files Changed:**
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221218_InitialIngredientListsAndItems.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221226_AddRecipeIngredientListJunction.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221233_AddSharingEntities.cs
+- RecipeManager.Tests/IngredientListSchemaTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+
+**Test Results:**
+- IngredientListSchemaTests: 16/16 passed
+- PostgreSQL migration update: succeeded against running Aspire container
+
+**Gotchas/Notes:**
+- The first migration generation produced empty follow-up migrations, so the staged migration files were rewritten manually to match the plan requirement for separate entity-group migrations.
+- PostgreSQL used the Aspire-generated container password from the running postgres container.
+
+**Next:** Task #2 - Create DbContext configurations and register in ApiService Program.cs
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

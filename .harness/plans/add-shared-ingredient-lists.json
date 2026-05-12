@@ -10,7 +10,7 @@
     {
       "id": 1,
       "title": "Design and create database schema for ingredient lists and sharing",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientList entity created with Id, Name, Description, OwnerId, CreatedAt, UpdatedAt properties",
         "Ingredient entity created with Id, IngredientListId, Name, Quantity, Unit, IsChecked, CreatedAt properties",
