@@ -17,6 +17,10 @@ if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<AuthDb
 if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<RecipeDbContext>)))
 {
     builder.AddNpgsqlDbContext<RecipeDbContext>("recipedb");
+if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<IngredientListDbContext>)))
+{
+    builder.AddNpgsqlDbContext<IngredientListDbContext>("recipedb");
+}
 }
 
 // Configure email service
@@ -53,6 +57,10 @@ using (var scope = app.Services.CreateScope())
     var recipeDb = scope.ServiceProvider.GetRequiredService<RecipeDbContext>();
     if (recipeDb.Database.IsRelational())
         recipeDb.Database.Migrate();
+
+    var ingredientListDb = scope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
+    if (ingredientListDb.Database.IsRelational())
+        ingredientListDb.Database.Migrate();
 }
 
 // Configure the HTTP request pipeline.
