@@ -78,7 +78,7 @@
     {
       "id": 5,
       "title": "Implement ingredient list sharing (email invitation and shareable links)",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "POST /api/ingredient-lists/{id}/share/email - Send email invitation to share list",
         "Email invitation includes link with token to accept sharing",

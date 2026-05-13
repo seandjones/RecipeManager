@@ -321,11 +321,23 @@ public class TestEmailService : IEmailService
 {
     public string? LastSentCode { get; private set; }
     public string? LastSentEmail { get; private set; }
+    public string? LastShareListName { get; private set; }
+    public string? LastShareUrl { get; private set; }
+    public AccessLevel? LastShareAccessLevel { get; private set; }
 
     public Task<bool> SendLoginCodeAsync(string email, string code, int expirationMinutes, CancellationToken cancellationToken = default)
     {
         LastSentEmail = email;
         LastSentCode = code;
+        return Task.FromResult(true);
+    }
+
+    public Task<bool> SendIngredientListShareInvitationAsync(string email, string listName, string shareUrl, AccessLevel accessLevel, CancellationToken cancellationToken = default)
+    {
+        LastSentEmail = email;
+        LastShareListName = listName;
+        LastShareUrl = shareUrl;
+        LastShareAccessLevel = accessLevel;
         return Task.FromResult(true);
     }
 }

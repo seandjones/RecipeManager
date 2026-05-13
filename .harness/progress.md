@@ -188,6 +188,41 @@ Completed ingredient-list API CRUD endpoints with ownership/shared authorization
 - External evaluator verdict: OVERALL PASS
 
 **Next:** Task #5 - Implement ingredient list sharing (email invitation and shareable links)
+
+## 2026-05-13 - Implement ingredient list sharing (email invitation and shareable links) (Plan: add-shared-ingredient-lists, Task #5)
+
+Implemented full ingredient-list sharing APIs for email invites and token links, including owner-only share management, token expiration enforcement, viewer/editor access handling, and invitation email delivery integration.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Models/IngredientListModels.cs
+- RecipeManager.ApiService/Services/IEmailService.cs
+- RecipeManager.ApiService/Services/DevelopmentEmailService.cs
+- RecipeManager.ApiService/Services/SendGridEmailService.cs
+- RecipeManager.ApiService/Services/EmailTemplates.cs
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260513212935_AddListShareTokenAccessLevel.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260513212935_AddListShareTokenAccessLevel.Designer.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/IngredientListDbContextModelSnapshot.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- RecipeManager.Tests/AuthFlowIntegrationTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListApiIntegrationTests: 10/10 passed
+- New tests added:
+  - ShareViaEmail_CreatesShare_And_SendsInvitation
+  - ShareLink_AllowsTokenAccess_And_RejectsExpiredLink
+  - RevokeShare_RemovesSharedUserAccess
+
+**Gotchas/Notes:**
+- `ListShareToken` now stores `AccessLevel` so link-based access can be enforced as Viewer or Editor.
+- Added migration `AddListShareTokenAccessLevel` to keep PostgreSQL schema aligned with runtime model.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #6 - Create IngredientListApiClient in Web project with service discovery
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

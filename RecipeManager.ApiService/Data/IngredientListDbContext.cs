@@ -115,6 +115,7 @@ public class IngredientListDbContext : DbContext
             entity.HasKey(e => e.Id);
             entity.Property(e => e.Token).IsRequired();
             entity.Property(e => e.ExpiresAt).IsRequired();
+            entity.Property(e => e.AccessLevel).IsRequired();
             entity.Property(e => e.CreatedAt).IsRequired();
             
             // Indexes

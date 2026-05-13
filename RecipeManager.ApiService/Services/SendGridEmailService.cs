@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using RecipeManager.ApiService.Data;
 using SendGrid;
 using SendGrid.Helpers.Mail;
 
@@ -62,6 +63,45 @@ public class SendGridEmailService(
         catch (Exception ex)
         {
             logger.LogError(ex, "Exception occurred while sending email to {Email}", email);
+            return false;
+        }
+    }
+
+    public async Task<bool> SendIngredientListShareInvitationAsync(string email, string listName, string shareUrl, AccessLevel accessLevel, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            if (string.IsNullOrWhiteSpace(_options.ApiKey))
+            {
+                logger.LogError("SendGrid API key is not configured");
+                return false;
+            }
+
+            var client = new SendGridClient(_options.ApiKey);
+
+            var from = new EmailAddress(_options.FromEmail, _options.FromName);
+            var to = new EmailAddress(email);
+            var subject = EmailTemplates.GetIngredientListShareSubject(listName);
+            var plainTextContent = EmailTemplates.GetIngredientListSharePlainText(listName, shareUrl, accessLevel);
+            var htmlContent = EmailTemplates.GetIngredientListShareHtml(listName, shareUrl, accessLevel);
+
+            var msg = MailHelper.CreateSingleEmail(from, to, subject, plainTextContent, htmlContent);
+            var response = await client.SendEmailAsync(msg, cancellationToken);
+
+            if (response.IsSuccessStatusCode)
+            {
+                logger.LogInformation("Ingredient list invitation email sent successfully to {Email}", email);
+                return true;
+            }
+
+            var body = await response.Body.ReadAsStringAsync(cancellationToken);
+            logger.LogError("Failed to send ingredient list invitation to {Email}. Status: {StatusCode}, Body: {Body}",
+                email, response.StatusCode, body);
+            return false;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Exception occurred while sending ingredient list invitation to {Email}", email);
             return false;
         }
     }

@@ -521,7 +521,7 @@ ingredientListGroup.MapPost("/{id:guid}/ingredients", async (
         return Results.Unauthorized();
     }
 
-    if (!await HasIngredientListAccessAsync(db, id, currentUserId.Value, cancellationToken))
+    if (!await HasIngredientListWriteAccessAsync(db, id, currentUserId.Value, cancellationToken))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -586,7 +586,7 @@ ingredientListGroup.MapPut("/{id:guid}/ingredients/{ingredientId:guid}", async (
         return Results.Unauthorized();
     }
 
-    if (!await HasIngredientListAccessAsync(db, id, currentUserId.Value, cancellationToken))
+    if (!await HasIngredientListWriteAccessAsync(db, id, currentUserId.Value, cancellationToken))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -651,7 +651,7 @@ ingredientListGroup.MapDelete("/{id:guid}/ingredients/{ingredientId:guid}", asyn
         return Results.Unauthorized();
     }
 
-    if (!await HasIngredientListAccessAsync(db, id, currentUserId.Value, cancellationToken))
+    if (!await HasIngredientListWriteAccessAsync(db, id, currentUserId.Value, cancellationToken))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -692,7 +692,7 @@ ingredientListGroup.MapPost("/{id:guid}/recipes", async (
         return Results.Unauthorized();
     }
 
-    if (!await HasIngredientListAccessAsync(db, id, currentUserId.Value, cancellationToken))
+    if (!await HasIngredientListWriteAccessAsync(db, id, currentUserId.Value, cancellationToken))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -751,7 +751,7 @@ ingredientListGroup.MapDelete("/{id:guid}/recipes/{recipeId:int}", async (
         return Results.Unauthorized();
     }
 
-    if (!await HasIngredientListAccessAsync(db, id, currentUserId.Value, cancellationToken))
+    if (!await HasIngredientListWriteAccessAsync(db, id, currentUserId.Value, cancellationToken))
     {
         return Results.StatusCode(StatusCodes.Status403Forbidden);
     }
@@ -773,6 +773,371 @@ ingredientListGroup.MapDelete("/{id:guid}/recipes/{recipeId:int}", async (
     return Results.NoContent();
 })
 .WithName("RemoveRecipeFromIngredientList")
+.WithOpenApi()
+.Produces(204)
+.Produces(401)
+.Produces(403)
+.Produces(404);
+
+ingredientListGroup.MapPost("/{id:guid}/share/email", async (
+    Guid id,
+    ShareIngredientListByEmailRequest request,
+    IngredientListDbContext db,
+    AuthDbContext authDb,
+    IEmailService emailService,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var currentUserId = ResolveCurrentUserId(httpContext);
+    if (!currentUserId.HasValue)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (string.IsNullOrWhiteSpace(request.Email))
+    {
+        return Results.BadRequest(new { error = "Email is required." });
+    }
+
+    var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
+    if (!emailValidator.IsValid(request.Email))
+    {
+        return Results.BadRequest(new { error = "Invalid email format." });
+    }
+
+    if (!TryParseAccessLevel(request.AccessLevel, out var accessLevel))
+    {
+        return Results.BadRequest(new { error = "AccessLevel must be Viewer or Editor." });
+    }
+
+    var list = await db.IngredientLists.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+    if (list is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (list.OwnerId != currentUserId.Value)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+    var sharedUser = await authDb.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+    if (sharedUser is null)
+    {
+        sharedUser = new User
+        {
+            Id = Guid.NewGuid(),
+            Email = normalizedEmail,
+            CreatedAt = DateTime.UtcNow
+        };
+        authDb.Users.Add(sharedUser);
+        await authDb.SaveChangesAsync(cancellationToken);
+    }
+
+    if (sharedUser.Id == currentUserId.Value)
+    {
+        return Results.BadRequest(new { error = "You cannot share a list with yourself." });
+    }
+
+    var existingShare = await db.ListSharings
+        .FirstOrDefaultAsync(s => s.IngredientListId == id && s.SharedWithUserId == sharedUser.Id, cancellationToken);
+
+    if (existingShare is null)
+    {
+        db.ListSharings.Add(new ListSharing
+        {
+            Id = Guid.NewGuid(),
+            IngredientListId = id,
+            SharedWithUserId = sharedUser.Id,
+            ShareType = "Email",
+            AccessLevel = accessLevel,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+    else
+    {
+        existingShare.AccessLevel = accessLevel;
+        existingShare.ShareType = "Email";
+    }
+
+    var shareToken = new ListShareToken
+    {
+        Id = Guid.NewGuid(),
+        IngredientListId = id,
+        Token = Guid.NewGuid(),
+        AccessLevel = accessLevel,
+        ExpiresAt = DateTime.UtcNow.AddDays(7),
+        CreatedAt = DateTime.UtcNow
+    };
+    db.ListShareTokens.Add(shareToken);
+
+    list.UpdatedAt = DateTime.UtcNow;
+    await db.SaveChangesAsync(cancellationToken);
+
+    var shareUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}/api/ingredient-lists/shared/{shareToken.Token}";
+    var emailSent = await emailService.SendIngredientListShareInvitationAsync(
+        normalizedEmail,
+        list.Name,
+        shareUrl,
+        accessLevel,
+        cancellationToken);
+
+    if (!emailSent)
+    {
+        return Results.Problem("Failed to send invitation email.", statusCode: StatusCodes.Status500InternalServerError);
+    }
+
+    return Results.Ok(new
+    {
+        message = "Share invitation sent.",
+        shareUrl,
+        accessLevel = accessLevel.ToString(),
+        expiresAt = shareToken.ExpiresAt
+    });
+})
+.WithName("ShareIngredientListViaEmail")
+.WithOpenApi()
+.Produces(200)
+.Produces(400)
+.Produces(401)
+.Produces(403)
+.Produces(404)
+.Produces(500);
+
+ingredientListGroup.MapPost("/{id:guid}/share/link", async (
+    Guid id,
+    CreateIngredientListShareLinkRequest request,
+    IngredientListDbContext db,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var currentUserId = ResolveCurrentUserId(httpContext);
+    if (!currentUserId.HasValue)
+    {
+        return Results.Unauthorized();
+    }
+
+    if (!TryParseAccessLevel(request.AccessLevel, out var accessLevel))
+    {
+        return Results.BadRequest(new { error = "AccessLevel must be Viewer or Editor." });
+    }
+
+    if (request.ExpiresInDays < 1 || request.ExpiresInDays > 365)
+    {
+        return Results.BadRequest(new { error = "ExpiresInDays must be between 1 and 365." });
+    }
+
+    var list = await db.IngredientLists.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+    if (list is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (list.OwnerId != currentUserId.Value)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var now = DateTime.UtcNow;
+    var token = new ListShareToken
+    {
+        Id = Guid.NewGuid(),
+        IngredientListId = id,
+        Token = Guid.NewGuid(),
+        AccessLevel = accessLevel,
+        ExpiresAt = now.AddDays(request.ExpiresInDays),
+        CreatedAt = now
+    };
+
+    db.ListShareTokens.Add(token);
+    list.UpdatedAt = now;
+    await db.SaveChangesAsync(cancellationToken);
+
+    var shareUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}/api/ingredient-lists/shared/{token.Token}";
+    return Results.Ok(new IngredientListShareLinkResponse(
+        token.Token,
+        shareUrl,
+        accessLevel.ToString(),
+        token.ExpiresAt));
+})
+.WithName("GenerateIngredientListShareLink")
+.WithOpenApi()
+.Produces<IngredientListShareLinkResponse>(200)
+.Produces(400)
+.Produces(401)
+.Produces(403)
+.Produces(404);
+
+ingredientListGroup.MapGet("/shared/{token:guid}", async (
+    Guid token,
+    IngredientListDbContext db,
+    CancellationToken cancellationToken) =>
+{
+    var shareToken = await db.ListShareTokens
+        .Include(t => t.IngredientList)
+        .ThenInclude(l => l!.Ingredients)
+        .Include(t => t.IngredientList)
+        .ThenInclude(l => l!.RecipeLinks)
+        .FirstOrDefaultAsync(t => t.Token == token, cancellationToken);
+
+    if (shareToken is null || shareToken.IngredientList is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (shareToken.ExpiresAt <= DateTime.UtcNow)
+    {
+        return Results.BadRequest(new { error = "Share link has expired." });
+    }
+
+    var recipeIds = shareToken.IngredientList.RecipeLinks.Select(r => r.RecipeId).ToList();
+    var recipes = await db.Set<Recipe>()
+        .Where(r => recipeIds.Contains(r.Id))
+        .Select(r => new RecipeSummaryResponse(r.Id, r.Name, r.Description))
+        .ToListAsync(cancellationToken);
+
+    var list = shareToken.IngredientList;
+    var response = new SharedIngredientListAccessResponse(
+        list.Id,
+        list.Name,
+        list.Description,
+        list.OwnerId,
+        list.CreatedAt,
+        list.UpdatedAt,
+        list.Ingredients
+            .OrderBy(i => i.CreatedAt)
+            .Select(i => new IngredientItemResponse(i.Id, i.Name, i.Quantity, i.Unit, i.IsChecked, i.CreatedAt))
+            .ToList(),
+        recipes,
+        shareToken.AccessLevel.ToString(),
+        shareToken.AccessLevel == AccessLevel.Editor,
+        shareToken.ExpiresAt);
+
+    return Results.Ok(response);
+})
+.WithName("GetIngredientListByShareToken")
+.WithOpenApi()
+.Produces<SharedIngredientListAccessResponse>(200)
+.Produces(400)
+.Produces(404);
+
+ingredientListGroup.MapGet("/{id:guid}/sharing", async (
+    Guid id,
+    IngredientListDbContext db,
+    AuthDbContext authDb,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var currentUserId = ResolveCurrentUserId(httpContext);
+    if (!currentUserId.HasValue)
+    {
+        return Results.Unauthorized();
+    }
+
+    var list = await db.IngredientLists.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+    if (list is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (list.OwnerId != currentUserId.Value)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var emailShares = await db.ListSharings
+        .Where(s => s.IngredientListId == id)
+        .ToListAsync(cancellationToken);
+
+    var userIds = emailShares.Select(s => s.SharedWithUserId).Distinct().ToList();
+    var usersById = await authDb.Users
+        .Where(u => userIds.Contains(u.Id))
+        .ToDictionaryAsync(u => u.Id, u => u.Email, cancellationToken);
+
+    var linkShares = await db.ListShareTokens
+        .Where(t => t.IngredientListId == id && t.ExpiresAt > DateTime.UtcNow)
+        .ToListAsync(cancellationToken);
+
+    var baseUrl = $"{httpContext.Request.Scheme}://{httpContext.Request.Host}";
+    var response = new List<IngredientListShareResponse>();
+
+    response.AddRange(emailShares.Select(s => new IngredientListShareResponse(
+        s.Id,
+        s.IngredientListId,
+        s.ShareType,
+        s.AccessLevel.ToString(),
+        s.SharedWithUserId,
+        usersById.TryGetValue(s.SharedWithUserId, out var email) ? email : null,
+        s.CreatedAt,
+        null,
+        null)));
+
+    response.AddRange(linkShares.Select(t => new IngredientListShareResponse(
+        t.Id,
+        t.IngredientListId,
+        "Link",
+        t.AccessLevel.ToString(),
+        null,
+        null,
+        t.CreatedAt,
+        t.ExpiresAt,
+        $"{baseUrl}/api/ingredient-lists/shared/{t.Token}")));
+
+    return Results.Ok(response.OrderByDescending(s => s.CreatedAt));
+})
+.WithName("GetIngredientListSharing")
+.WithOpenApi()
+.Produces<List<IngredientListShareResponse>>(200)
+.Produces(401)
+.Produces(403)
+.Produces(404);
+
+ingredientListGroup.MapDelete("/{id:guid}/sharing/{shareId:guid}", async (
+    Guid id,
+    Guid shareId,
+    IngredientListDbContext db,
+    HttpContext httpContext,
+    CancellationToken cancellationToken) =>
+{
+    var currentUserId = ResolveCurrentUserId(httpContext);
+    if (!currentUserId.HasValue)
+    {
+        return Results.Unauthorized();
+    }
+
+    var list = await db.IngredientLists.FirstOrDefaultAsync(l => l.Id == id, cancellationToken);
+    if (list is null)
+    {
+        return Results.NotFound();
+    }
+
+    if (list.OwnerId != currentUserId.Value)
+    {
+        return Results.StatusCode(StatusCodes.Status403Forbidden);
+    }
+
+    var emailShare = await db.ListSharings
+        .FirstOrDefaultAsync(s => s.IngredientListId == id && s.Id == shareId, cancellationToken);
+    if (emailShare is not null)
+    {
+        db.ListSharings.Remove(emailShare);
+        await db.SaveChangesAsync(cancellationToken);
+        return Results.NoContent();
+    }
+
+    var linkShare = await db.ListShareTokens
+        .FirstOrDefaultAsync(t => t.IngredientListId == id && t.Id == shareId, cancellationToken);
+    if (linkShare is null)
+    {
+        return Results.NotFound();
+    }
+
+    db.ListShareTokens.Remove(linkShare);
+    await db.SaveChangesAsync(cancellationToken);
+    return Results.NoContent();
+})
+.WithName("RevokeIngredientListSharing")
 .WithOpenApi()
 .Produces(204)
 .Produces(401)
@@ -811,6 +1176,34 @@ static Task<bool> HasIngredientListAccessAsync(
             && (l.OwnerId == userId
                 || db.ListSharings.Any(s => s.IngredientListId == ingredientListId && s.SharedWithUserId == userId)),
         cancellationToken);
+}
+
+static Task<bool> HasIngredientListWriteAccessAsync(
+    IngredientListDbContext db,
+    Guid ingredientListId,
+    Guid userId,
+    CancellationToken cancellationToken)
+{
+    return db.IngredientLists.AnyAsync(
+        l => l.Id == ingredientListId
+            && (l.OwnerId == userId
+                || db.ListSharings.Any(s =>
+                    s.IngredientListId == ingredientListId
+                    && s.SharedWithUserId == userId
+                    && s.AccessLevel == AccessLevel.Editor)),
+        cancellationToken);
+}
+
+static bool TryParseAccessLevel(string? value, out AccessLevel accessLevel)
+{
+    if (string.IsNullOrWhiteSpace(value))
+    {
+        accessLevel = AccessLevel.Viewer;
+        return true;
+    }
+
+    return Enum.TryParse<AccessLevel>(value, ignoreCase: true, out accessLevel)
+        && (accessLevel == AccessLevel.Viewer || accessLevel == AccessLevel.Editor);
 }
 
 static string? ValidateIngredientListRequest(IngredientListRequest request)

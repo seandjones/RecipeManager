@@ -144,6 +144,11 @@ public class ListShareToken
     /// When this share token expires.
     /// </summary>
     public DateTime ExpiresAt { get; set; }
+
+    /// <summary>
+    /// Access level granted when this token is used.
+    /// </summary>
+    public AccessLevel AccessLevel { get; set; } = AccessLevel.Viewer;
     
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     

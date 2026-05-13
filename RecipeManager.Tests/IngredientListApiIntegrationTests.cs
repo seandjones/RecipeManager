@@ -329,6 +329,138 @@ public class IngredientListApiIntegrationTests
         Assert.AreEqual("Unit cannot exceed 50 characters.", payload["error"]);
     }
 
+    [TestMethod]
+    public async Task ShareViaEmail_CreatesShare_And_SendsInvitation()
+    {
+        var ownerId = Guid.NewGuid();
+        AddUserHeader(ownerId);
+
+        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Shareable List",
+            Description = "Email invite flow"
+        });
+
+        var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var inviteEmail = "collab@example.com";
+        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        {
+            Email = inviteEmail,
+            AccessLevel = "Editor"
+        });
+
+        Assert.AreEqual(HttpStatusCode.OK, shareResponse.StatusCode);
+
+        var testEmailService = _factory!.Services.GetRequiredService<IEmailService>() as TestEmailService;
+        Assert.IsNotNull(testEmailService);
+        Assert.AreEqual(inviteEmail, testEmailService!.LastSentEmail);
+        Assert.AreEqual("Shareable List", testEmailService.LastShareListName);
+        Assert.AreEqual(AccessLevel.Editor, testEmailService.LastShareAccessLevel);
+        Assert.IsFalse(string.IsNullOrWhiteSpace(testEmailService.LastShareUrl));
+
+        var sharingListResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        Assert.AreEqual(HttpStatusCode.OK, sharingListResponse.StatusCode);
+
+        var shares = await sharingListResponse.Content.ReadFromJsonAsync<List<IngredientListShareResponse>>();
+        Assert.IsNotNull(shares);
+        Assert.IsTrue(shares.Any(s => s.ShareType == "Email" && s.SharedWithEmail == inviteEmail && s.AccessLevel == "Editor"));
+    }
+
+    [TestMethod]
+    public async Task ShareLink_AllowsTokenAccess_And_RejectsExpiredLink()
+    {
+        AddUserHeader(Guid.NewGuid());
+
+        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Link Shared List",
+            Description = "Share token flow"
+        });
+
+        var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var generateLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
+        {
+            AccessLevel = "Viewer",
+            ExpiresInDays = 2
+        });
+
+        Assert.AreEqual(HttpStatusCode.OK, generateLinkResponse.StatusCode);
+        var linkPayload = await generateLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
+        Assert.IsNotNull(linkPayload);
+
+        var sharedAccessResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload!.Token}");
+        Assert.AreEqual(HttpStatusCode.OK, sharedAccessResponse.StatusCode);
+        var sharedPayload = await sharedAccessResponse.Content.ReadFromJsonAsync<SharedIngredientListAccessResponse>();
+        Assert.IsNotNull(sharedPayload);
+        Assert.AreEqual("Viewer", sharedPayload.AccessLevel);
+        Assert.IsFalse(sharedPayload.CanEdit);
+
+        using (var scope = _factory!.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
+            var token = await db.ListShareTokens.SingleAsync(t => t.Token == linkPayload.Token);
+            token.ExpiresAt = DateTime.UtcNow.AddMinutes(-1);
+            await db.SaveChangesAsync();
+        }
+
+        var expiredResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload.Token}");
+        Assert.AreEqual(HttpStatusCode.BadRequest, expiredResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task RevokeShare_RemovesSharedUserAccess()
+    {
+        var ownerId = Guid.NewGuid();
+        AddUserHeader(ownerId);
+
+        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Revocable List",
+            Description = "Revoke sharing flow"
+        });
+
+        var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var sharedEmail = "remove-me@example.com";
+        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        {
+            Email = sharedEmail,
+            AccessLevel = "Viewer"
+        });
+
+        Assert.AreEqual(HttpStatusCode.OK, shareResponse.StatusCode);
+
+        var sharesResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        Assert.AreEqual(HttpStatusCode.OK, sharesResponse.StatusCode);
+        var shares = await sharesResponse.Content.ReadFromJsonAsync<List<IngredientListShareResponse>>();
+        Assert.IsNotNull(shares);
+
+        var emailShare = shares!.FirstOrDefault(s => s.ShareType == "Email" && s.SharedWithEmail == sharedEmail);
+        Assert.IsNotNull(emailShare);
+
+        var revokeResponse = await _client.DeleteAsync($"/api/ingredient-lists/{list.Id}/sharing/{emailShare!.ShareId}");
+        Assert.AreEqual(HttpStatusCode.NoContent, revokeResponse.StatusCode);
+
+        Guid sharedUserId;
+        using (var scope = _factory!.Services.CreateScope())
+        {
+            var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
+            var sharedUser = await authDb.Users.SingleAsync(u => u.Email == sharedEmail);
+            sharedUserId = sharedUser.Id;
+        }
+
+        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        AddUserHeader(sharedUserId);
+
+        var getAfterRevoke = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        Assert.AreEqual(HttpStatusCode.Forbidden, getAfterRevoke.StatusCode);
+    }
+
     private void AddUserHeader(Guid userId)
     {
         _client!.DefaultRequestHeaders.Add("X-User-Id", userId.ToString());

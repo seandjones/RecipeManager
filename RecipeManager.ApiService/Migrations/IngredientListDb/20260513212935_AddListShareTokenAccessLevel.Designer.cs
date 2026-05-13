@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using RecipeManager.ApiService.Data;
@@ -11,9 +12,11 @@ using RecipeManager.ApiService.Data;
 namespace RecipeManager.ApiService.Migrations.IngredientListDb
 {
     [DbContext(typeof(IngredientListDbContext))]
-    partial class IngredientListDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260513212935_AddListShareTokenAccessLevel")]
+    partial class AddListShareTokenAccessLevel
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
