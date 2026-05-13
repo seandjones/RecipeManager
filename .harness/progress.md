@@ -165,6 +165,29 @@ Implemented a typed SignalR hub for ingredient-list real-time updates with per-l
 - Group naming follows `ingredient-list-{listId}` consistently for join/leave and broadcasts.
 
 **Next:** Task #4 - Implement API endpoints for ingredient list CRUD operations
+
+## 2026-05-13 - Implement API endpoints for ingredient list CRUD operations (Plan: add-shared-ingredient-lists, Task #4)
+
+Completed ingredient-list API CRUD endpoints with ownership/shared authorization checks, OpenAPI metadata, and expanded input validation checks that enforce key request constraints with explicit error messages.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListApiIntegrationTests: 7/7 passed
+- New tests added:
+  - CreateList_WithInvalidPayload_ReturnsBadRequestWithMessage
+  - AddIngredient_WithInvalidPayload_ReturnsBadRequestWithMessage
+
+**Gotchas/Notes:**
+- Endpoint validation now explicitly enforces max-length constraints declared by API models for list names/descriptions and ingredient fields.
+- ASPDEPR002 warnings from `.WithOpenApi()` remain expected and were retained to satisfy acceptance criteria.
+- External evaluator verdict: OVERALL PASS
+
+**Next:** Task #5 - Implement ingredient list sharing (email invitation and shareable links)
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

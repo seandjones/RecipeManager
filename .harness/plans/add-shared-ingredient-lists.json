@@ -56,7 +56,7 @@
     {
       "id": 4,
       "title": "Implement API endpoints for ingredient list CRUD operations",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "POST /api/ingredient-lists - Create new ingredient list (authenticated, sets OwnerId to current user)",
         "GET /api/ingredient-lists - List all ingredient lists current user owns or has access to",
