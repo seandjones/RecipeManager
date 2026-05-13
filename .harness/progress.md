@@ -254,6 +254,28 @@ Implemented a typed `IngredientListApiClient` in the Web project with service di
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #7 - Create SignalR client setup in Web project for real-time updates
+
+## 2026-05-13 - Create SignalR client setup in Web project for real-time updates (Plan: add-shared-ingredient-lists, Task #7)
+
+Implemented a scoped Web SignalR client service for ingredient-list real-time updates, including connection lifecycle methods, group join/leave operations, server callback event handling, outbound hub invoke methods, and explicit exponential-backoff reconnect policy.
+
+**Files Changed:**
+- RecipeManager.Web/Services/IngredientListSignalRClient.cs
+- RecipeManager.Web/Program.cs
+- RecipeManager.Web/RecipeManager.Web.csproj
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Filtered verification run: 34/34 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests`)
+
+**Gotchas/Notes:**
+- Added `Microsoft.AspNetCore.SignalR.Client` package to Web project.
+- Reconnect behavior now uses explicit exponential backoff via custom `IRetryPolicy` with capped delay.
+- Client rejoins the active list group automatically on reconnection.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #8 - Build IngredientList detail/management page
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

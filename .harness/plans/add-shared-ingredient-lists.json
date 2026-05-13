@@ -120,7 +120,7 @@
     {
       "id": 7,
       "title": "Create SignalR client setup in Web project for real-time updates",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientListSignalRClient class created to manage SignalR connection lifecycle",
         "InitializeAsync(listId) establishes connection and joins list group",

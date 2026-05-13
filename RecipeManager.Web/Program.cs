@@ -56,6 +56,8 @@ builder.Services.AddHttpClient<IngredientListApiClient>(client =>
         client.BaseAddress = new("https+http://apiservice");
     });
 
+builder.Services.AddScoped<IngredientListSignalRClient>();
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
