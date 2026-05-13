@@ -96,7 +96,7 @@
     {
       "id": 6,
       "title": "Create IngredientListApiClient in Web project with service discovery",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientListApiClient class created using primary constructor with HttpClient",
         "GetListsAsync() returns IngredientList[] (owned and shared lists)",

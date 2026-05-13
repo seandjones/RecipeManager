@@ -223,6 +223,37 @@ Implemented full ingredient-list sharing APIs for email invites and token links,
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #6 - Create IngredientListApiClient in Web project with service discovery
+
+## 2026-05-13 - Create IngredientListApiClient in Web project with service discovery (Plan: add-shared-ingredient-lists, Task #6)
+
+Implemented a typed `IngredientListApiClient` in the Web project with service discovery and full method coverage for ingredient-list CRUD, ingredient and recipe association operations, sharing operations, and share-token access retrieval.
+
+**Files Changed:**
+- RecipeManager.Web/Services/IngredientListApiClient.cs
+- RecipeManager.Web/Models/IngredientListModels.cs
+- RecipeManager.Web/Program.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Filtered test run: 44/44 passed
+- New tests added in `IngredientListApiClientTests` to verify:
+  - owned/shared list retrieval
+  - detail retrieval with ingredients + recipes
+  - create/update/delete list
+  - add/update/delete ingredient
+  - add/remove recipe association
+  - email share request
+  - share-link generation
+  - shared-token access success + not-found
+
+**Gotchas/Notes:**
+- Added Web-side ingredient-list DTOs aligned to API payloads for clean client deserialization.
+- Registered typed client in `RecipeManager.Web/Program.cs` using `https+http://apiservice` service discovery base address.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #7 - Create SignalR client setup in Web project for real-time updates
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

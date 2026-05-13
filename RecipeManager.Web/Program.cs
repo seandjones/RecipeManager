@@ -50,6 +50,12 @@ builder.Services.AddHttpClient<RecipeApiClient>(client =>
         client.BaseAddress = new("https+http://apiservice");
     });
 
+// Register IngredientListApiClient
+builder.Services.AddHttpClient<IngredientListApiClient>(client =>
+    {
+        client.BaseAddress = new("https+http://apiservice");
+    });
+
 var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
