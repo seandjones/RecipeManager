@@ -42,6 +42,7 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 
 // Add services to the container.
 builder.Services.AddProblemDetails();
+builder.Services.AddSignalR();
 
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
@@ -171,6 +172,7 @@ authGroup.MapPost("/logout", () =>
 .Produces(200);
 
 app.MapDefaultEndpoints();
+app.MapHub<IngredientListHub>("/hubs/ingredient-list");
 
 // Recipe endpoints
 var recipeGroup = app.MapGroup("/api/recipes")

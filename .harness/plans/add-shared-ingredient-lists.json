@@ -40,7 +40,7 @@
     {
       "id": 3,
       "title": "Set up SignalR hub for real-time ingredient list synchronization",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientListHub created in ApiService.Services with SignalR Hub<IIngredientListClient> inheritance",
         "Hub methods: JoinListGroup(listId), LeaveListGroup(listId), UpdateIngredientCheckState(listId, ingredientId, isChecked)",

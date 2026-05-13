@@ -143,6 +143,28 @@ Wired `IngredientListDbContext` into the API startup, aligned the recipe-junctio
 - The PostgreSQL verification test now provisions its own container, which avoids depending on an already-running local database.
 
 **Next:** Task #3 - Set up SignalR hub for real-time ingredient list synchronization
+
+## 2026-05-12 - Set up SignalR hub for real-time ingredient list synchronization (Plan: add-shared-ingredient-lists, Task #3)
+
+Implemented a typed SignalR hub for ingredient-list real-time updates with per-list grouping and access checks based on owner/share relationships.
+
+**Files Changed:**
+- RecipeManager.ApiService/Services/IIngredientListClient.cs
+- RecipeManager.ApiService/Services/IngredientListHub.cs
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.Tests/IngredientListHubTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListHubTests: 4/4 passed
+- Evaluator verdict: OVERALL PASS
+
+**Gotchas/Notes:**
+- Hub authorization currently resolves user identity from claims (`NameIdentifier`, `userId`, `sub`) and validates access via `IngredientLists` ownership or `ListSharings`.
+- Group naming follows `ingredient-list-{listId}` consistently for join/leave and broadcasts.
+
+**Next:** Task #4 - Implement API endpoints for ingredient list CRUD operations
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
