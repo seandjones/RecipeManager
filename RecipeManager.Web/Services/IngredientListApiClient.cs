@@ -229,6 +229,18 @@ public class IngredientListApiClient(HttpClient httpClient)
         }
     }
 
+    public async Task<IngredientListSharingEntry[]> GetSharingAsync(Guid listId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await httpClient.GetFromJsonAsync<IngredientListSharingEntry[]>($"/api/ingredient-lists/{listId}/sharing", cancellationToken) ?? [];
+        }
+        catch (Exception)
+        {
+            return [];
+        }
+    }
+
     private static IngredientList MapSummaryToIngredientList(IngredientListSummaryResponse summary)
     {
         return new IngredientList
@@ -239,6 +251,10 @@ public class IngredientListApiClient(HttpClient httpClient)
             OwnerId = summary.OwnerId,
             CreatedAt = summary.CreatedAt,
             UpdatedAt = summary.UpdatedAt,
+            AccessLevel = summary.AccessLevel,
+            SharedByUserId = summary.SharedByUserId,
+            RecipeCount = 0,
+            SharedCount = 0,
             Ingredients = [],
             Recipes = []
         };
@@ -254,6 +270,10 @@ public class IngredientListApiClient(HttpClient httpClient)
             OwnerId = detail.OwnerId,
             CreatedAt = detail.CreatedAt,
             UpdatedAt = detail.UpdatedAt,
+            AccessLevel = "Owner",
+            SharedByUserId = null,
+            RecipeCount = detail.Recipes.Count,
+            SharedCount = 0,
             Ingredients = detail.Ingredients,
             Recipes = detail.Recipes
         };

@@ -38,7 +38,9 @@ public record IngredientListSummaryResponse(
     string? Description,
     Guid OwnerId,
     DateTime CreatedAt,
-    DateTime UpdatedAt);
+    DateTime UpdatedAt,
+    string AccessLevel = "Owner",
+    Guid? SharedByUserId = null);
 
 public record IngredientItemResponse(
     Guid Id,

@@ -340,17 +340,36 @@ ingredientListGroup.MapGet("/", async (
         .Select(s => s.IngredientListId)
         .ToListAsync(cancellationToken);
 
-    var lists = await db.IngredientLists
+    var sharedAccessByListId = await db.ListSharings
+        .Where(s => s.SharedWithUserId == currentUserId.Value)
+        .ToDictionaryAsync(s => s.IngredientListId, s => s.AccessLevel, cancellationToken);
+
+    var listEntities = await db.IngredientLists
         .Where(l => l.OwnerId == currentUserId.Value || sharedListIds.Contains(l.Id))
         .OrderByDescending(l => l.UpdatedAt)
-        .Select(l => new IngredientListSummaryResponse(
-            l.Id,
-            l.Name,
-            l.Description,
-            l.OwnerId,
-            l.CreatedAt,
-            l.UpdatedAt))
         .ToListAsync(cancellationToken);
+
+    var lists = listEntities
+        .Select(l =>
+        {
+            var isOwner = l.OwnerId == currentUserId.Value;
+            var accessLevel = isOwner
+                ? "Owner"
+                : sharedAccessByListId.TryGetValue(l.Id, out var access)
+                    ? access.ToString()
+                    : "Viewer";
+
+            return new IngredientListSummaryResponse(
+                l.Id,
+                l.Name,
+                l.Description,
+                l.OwnerId,
+                l.CreatedAt,
+                l.UpdatedAt,
+                accessLevel,
+                isOwner ? null : l.OwnerId);
+        })
+        .ToList();
 
     return Results.Ok(lists);
 })

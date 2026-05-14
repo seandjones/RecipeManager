@@ -421,6 +421,52 @@ public class IngredientListApiClientTests
         cutB.WaitForAssertion(() => Assert.AreEqual(1, cutB.FindAll("input[type=checkbox][checked]").Count));
     }
 
+    [TestMethod]
+    public void IngredientListsPage_RendersOwnedAndSharedSections()
+    {
+        using var ctx = new Bunit.TestContext();
+        var userId = Guid.NewGuid();
+        var ownedListId = Guid.NewGuid();
+        var sharedListId = Guid.NewGuid();
+
+        ConfigureIngredientListsPageServices(ctx, userId, ownedListId, sharedListId, hasLists: true);
+
+        var cut = ctx.RenderComponent<IngredientLists>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.IsTrue(cut.Markup.Contains("My Lists"));
+            Assert.IsTrue(cut.Markup.Contains("Shared With Me"));
+            Assert.IsTrue(cut.Markup.Contains("Owned Weekly List"));
+            Assert.IsTrue(cut.Markup.Contains("Recipes: 2"));
+            Assert.IsTrue(cut.Markup.Contains("Shared: 1"));
+        });
+
+        cut.FindAll("button").First(b => b.TextContent.Contains("Shared With Me")).Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.IsTrue(cut.Markup.Contains("Shared Pantry List"));
+            Assert.IsTrue(cut.Markup.Contains("Access level: Editor"));
+        });
+    }
+
+    [TestMethod]
+    public void IngredientListsPage_ShowsEmptyState_WhenNoLists()
+    {
+        using var ctx = new Bunit.TestContext();
+        var userId = Guid.NewGuid();
+
+        ConfigureIngredientListsPageServices(ctx, userId, Guid.NewGuid(), Guid.NewGuid(), hasLists: false);
+
+        var cut = ctx.RenderComponent<IngredientLists>();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.IsTrue(cut.Markup.Contains("No ingredient lists yet. Create your first list to get started."));
+        });
+    }
+
     private static void ConfigureIngredientListDetailServices(Bunit.TestContext ctx, Guid listId)
     {
         var userId = Guid.NewGuid();
@@ -539,6 +585,110 @@ public class IngredientListApiClientTests
         };
 
         return new IngredientListApiClient(httpClient);
+    }
+
+    private static void ConfigureIngredientListsPageServices(Bunit.TestContext ctx, Guid userId, Guid ownedListId, Guid sharedListId, bool hasLists)
+    {
+        var httpContextAccessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity([
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Email, "test@example.com")
+                ], "test"))
+            }
+        };
+
+        var ingredientListApiClient = new IngredientListApiClient(new HttpClient(new RouteHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsolutePath == "/api/ingredient-lists")
+            {
+                if (!hasLists)
+                {
+                    return JsonResponse(HttpStatusCode.OK, Array.Empty<object>());
+                }
+
+                var payload = new object[]
+                {
+                    new
+                    {
+                        Id = ownedListId,
+                        Name = "Owned Weekly List",
+                        Description = "Owned description",
+                        OwnerId = userId,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        AccessLevel = "Owner",
+                        SharedByUserId = (Guid?)null
+                    },
+                    new
+                    {
+                        Id = sharedListId,
+                        Name = "Shared Pantry List",
+                        Description = "Shared description",
+                        OwnerId = Guid.NewGuid(),
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow,
+                        AccessLevel = "Editor",
+                        SharedByUserId = Guid.NewGuid()
+                    }
+                };
+
+                return JsonResponse(HttpStatusCode.OK, payload);
+            }
+
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsolutePath == $"/api/ingredient-lists/{ownedListId}")
+            {
+                var detail = new
+                {
+                    Id = ownedListId,
+                    Name = "Owned Weekly List",
+                    Description = "Owned description",
+                    OwnerId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Ingredients = Array.Empty<object>(),
+                    Recipes = new object[]
+                    {
+                        new { Id = 1, Name = "R1", Description = "D1" },
+                        new { Id = 2, Name = "R2", Description = "D2" }
+                    }
+                };
+
+                return JsonResponse(HttpStatusCode.OK, detail);
+            }
+
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsolutePath == $"/api/ingredient-lists/{ownedListId}/sharing")
+            {
+                var shares = new object[]
+                {
+                    new
+                    {
+                        ShareId = Guid.NewGuid(),
+                        IngredientListId = ownedListId,
+                        ShareType = "Email",
+                        AccessLevel = "Viewer",
+                        SharedWithUserId = Guid.NewGuid(),
+                        SharedWithEmail = "friend@example.com",
+                        CreatedAt = DateTime.UtcNow,
+                        ExpiresAt = (DateTime?)null,
+                        ShareUrl = (string?)null
+                    }
+                };
+
+                return JsonResponse(HttpStatusCode.OK, shares);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }))
+        {
+            BaseAddress = new Uri("https://test.api")
+        });
+
+        ctx.Services.AddSingleton<IHttpContextAccessor>(httpContextAccessor);
+        ctx.Services.AddScoped<AuthenticationService>();
+        ctx.Services.AddSingleton(ingredientListApiClient);
     }
 
     private sealed class RouteHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler

@@ -8,8 +8,25 @@ public class IngredientList
     public Guid OwnerId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string AccessLevel { get; set; } = "Owner";
+    public Guid? SharedByUserId { get; set; }
+    public int RecipeCount { get; set; }
+    public int SharedCount { get; set; }
     public List<IngredientItem> Ingredients { get; set; } = [];
     public List<IngredientListRecipe> Recipes { get; set; } = [];
+}
+
+public class IngredientListSharingEntry
+{
+    public Guid ShareId { get; set; }
+    public Guid IngredientListId { get; set; }
+    public string ShareType { get; set; } = string.Empty;
+    public string AccessLevel { get; set; } = "Viewer";
+    public Guid? SharedWithUserId { get; set; }
+    public string? SharedWithEmail { get; set; }
+    public DateTime CreatedAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
+    public string? ShareUrl { get; set; }
 }
 
 public class IngredientItem
@@ -74,6 +91,8 @@ internal class IngredientListSummaryResponse
     public Guid OwnerId { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime UpdatedAt { get; set; }
+    public string AccessLevel { get; set; } = "Owner";
+    public Guid? SharedByUserId { get; set; }
 }
 
 internal class IngredientListDetailResponse

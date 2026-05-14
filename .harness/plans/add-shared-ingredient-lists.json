@@ -163,7 +163,7 @@
     {
       "id": 9,
       "title": "Build ingredient lists index/discovery page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientLists.razor component created at /ingredient-lists",
         "@page directive",

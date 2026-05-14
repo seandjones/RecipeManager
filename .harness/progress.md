@@ -302,6 +302,34 @@ Implemented the authenticated ingredient-list detail page with streaming renderi
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #9 - Build ingredient lists index/discovery page
+
+## 2026-05-14 - Build ingredient lists index/discovery page (Plan: add-shared-ingredient-lists, Task #9)
+
+Implemented the authenticated ingredient-lists index/discovery page with tabbed owned/shared views, list metadata cards, create/delete flows, and navigation integration to ingredient-list details.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/IngredientLists.razor
+- RecipeManager.Web/Components/Layout/NavMenu.razor
+- RecipeManager.Web/Services/IngredientListApiClient.cs
+- RecipeManager.Web/Models/IngredientListModels.cs
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Models/IngredientListModels.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 43/43 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests|IngredientListHubTests`)
+- Added bUnit page render tests for:
+  - owned/shared tab rendering and metadata display
+  - empty-state rendering when no lists exist
+
+**Gotchas/Notes:**
+- Added `AccessLevel` and `SharedByUserId` to ingredient-list summary payload to support shared list display requirements.
+- Owned-list recipe/share counts are enriched client-side via detail/sharing API calls.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #10 - Implement share modal and link/email invitation UI
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
