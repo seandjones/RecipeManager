@@ -185,7 +185,7 @@
     {
       "id": 10,
       "title": "Implement share modal and link/email invitation UI",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "ShareIngredientListModal.razor component created for share dialog",
         "Two tabs: Email Invite and Shareable Link",

@@ -1,0 +1,208 @@
+@rendermode InteractiveServer
+@inject IngredientListApiClient IngredientListApi
+@inject IJSRuntime JS
+
+<div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Share "@ListName"</h5>
+                <button type="button" class="btn-close" @onclick="OnClose"></button>
+            </div>
+            <div class="modal-body">
+                <ul class="nav nav-tabs mb-3">
+                    <li class="nav-item">
+                        <button class="nav-link @(activeTab == "email" ? "active" : "")"
+                                @onclick='() => SetActiveTab("email")'>Email Invite</button>
+                    </li>
+                    <li class="nav-item">
+                        <button class="nav-link @(activeTab == "link" ? "active" : "")"
+                                @onclick='() => SetActiveTab("link")'>Shareable Link</button>
+                    </li>
+                </ul>
+
+                @if (!string.IsNullOrWhiteSpace(successMessage))
+                {
+                    <div class="alert alert-success alert-dismissible">
+                        @successMessage
+                        <button type="button" class="btn-close" @onclick="() => successMessage = null"></button>
+                    </div>
+                }
+                @if (!string.IsNullOrWhiteSpace(errorMessage))
+                {
+                    <div class="alert alert-danger alert-dismissible">
+                        @errorMessage
+                        <button type="button" class="btn-close" @onclick="() => errorMessage = null"></button>
+                    </div>
+                }
+
+                @if (activeTab == "email")
+                {
+                    <div>
+                        <div class="mb-3">
+                            <label for="inviteEmail" class="form-label">Email address</label>
+                            <input id="inviteEmail" type="email" class="form-control"
+                                   placeholder="friend@example.com"
+                                   @bind="inviteEmail" />
+                        </div>
+                        <div class="mb-3">
+                            <label for="emailAccessLevel" class="form-label">Access level</label>
+                            <select id="emailAccessLevel" class="form-select" @bind="emailAccessLevel">
+                                <option value="Viewer">Viewer (read-only)</option>
+                                <option value="Editor">Editor (can modify)</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary" @onclick="SendEmailInviteAsync" disabled="@isSending">
+                            @if (isSending)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            }
+                            Send Invite
+                        </button>
+                    </div>
+                }
+                else
+                {
+                    <div>
+                        <div class="mb-3">
+                            <label for="linkAccessLevel" class="form-label">Access level</label>
+                            <select id="linkAccessLevel" class="form-select" @bind="linkAccessLevel">
+                                <option value="Viewer">Viewer (read-only)</option>
+                                <option value="Editor">Editor (can modify)</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="linkExpiryDays" class="form-label">Expires in</label>
+                            <select id="linkExpiryDays" class="form-select" @bind="linkExpiryDays">
+                                <option value="1">1 day</option>
+                                <option value="7">7 days</option>
+                                <option value="30">30 days</option>
+                            </select>
+                        </div>
+                        <button class="btn btn-primary me-2" @onclick="GenerateLinkAsync" disabled="@isSending">
+                            @if (isSending)
+                            {
+                                <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                            }
+                            Generate Link
+                        </button>
+
+                        @if (generatedLink is not null)
+                        {
+                            <div class="mt-3">
+                                <label class="form-label">Shareable link</label>
+                                <div class="input-group">
+                                    <input id="shareLink" type="text" class="form-control" readonly
+                                           value="@generatedLink.Url" />
+                                    <button class="btn btn-outline-secondary" @onclick="CopyLinkAsync" title="Copy to clipboard">
+                                        <span class="bi bi-clipboard" aria-hidden="true"></span> Copy
+                                    </button>
+                                </div>
+                                <small class="text-muted">
+                                    Expires: @generatedLink.ExpiresAt.ToLocalTime().ToString("MMM d, yyyy h:mm tt")
+                                    &mdash; Access: @generatedLink.AccessLevel
+                                </small>
+                            </div>
+                        }
+                    </div>
+                }
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" @onclick="OnClose">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    [Parameter, EditorRequired] public Guid ListId { get; set; }
+    [Parameter, EditorRequired] public string ListName { get; set; } = string.Empty;
+    [Parameter] public EventCallback OnClose { get; set; }
+
+    private string activeTab = "email";
+    private string inviteEmail = string.Empty;
+    private string emailAccessLevel = "Viewer";
+    private string linkAccessLevel = "Viewer";
+    private int linkExpiryDays = 7;
+    private bool isSending;
+    private string? successMessage;
+    private string? errorMessage;
+    private IngredientListShareLink? generatedLink;
+
+    private void SetActiveTab(string tab)
+    {
+        activeTab = tab;
+        successMessage = null;
+        errorMessage = null;
+    }
+
+    private async Task SendEmailInviteAsync()
+    {
+        if (string.IsNullOrWhiteSpace(inviteEmail))
+        {
+            errorMessage = "Please enter an email address.";
+            return;
+        }
+
+        isSending = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var ok = await IngredientListApi.ShareListViaEmailAsync(ListId, inviteEmail.Trim(), emailAccessLevel);
+            if (ok)
+            {
+                successMessage = $"Invitation sent to {inviteEmail.Trim()}.";
+                inviteEmail = string.Empty;
+            }
+            else
+            {
+                errorMessage = "Failed to send invitation. Please try again.";
+            }
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+
+    private async Task GenerateLinkAsync()
+    {
+        isSending = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var link = await IngredientListApi.GenerateShareLinkAsync(ListId, linkAccessLevel);
+            if (link is not null)
+            {
+                generatedLink = link;
+                successMessage = "Shareable link generated.";
+            }
+            else
+            {
+                errorMessage = "Failed to generate link. Please try again.";
+            }
+        }
+        finally
+        {
+            isSending = false;
+        }
+    }
+
+    private async Task CopyLinkAsync()
+    {
+        if (generatedLink is null) return;
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", generatedLink.Url);
+            successMessage = "Link copied to clipboard.";
+        }
+        catch
+        {
+            errorMessage = "Copy failed. Please copy the link manually.";
+        }
+    }
+}

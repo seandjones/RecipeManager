@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Http;
 using RecipeManager.Web.Models;
 using RecipeManager.Web.Components.Pages;
+using Microsoft.JSInterop;
 using RecipeManager.Web.Services;
 using System.Net;
 using System.Security.Claims;
@@ -695,6 +696,158 @@ public class IngredientListApiClientTests
     {
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
             => Task.FromResult(handler(request));
+    }
+
+    // ── ShareIngredientListModal bUnit tests ────────────────────────────────────
+
+    [TestMethod]
+    public void ShareModal_RendersEmailTabByDefault()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId);
+
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List"));
+
+        Assert.IsTrue(cut.Markup.Contains("Party List"));
+        Assert.IsTrue(cut.Markup.Contains("Email Invite"));
+        Assert.IsTrue(cut.Markup.Contains("Shareable Link"));
+        Assert.IsTrue(cut.Markup.Contains("inviteEmail"));
+        Assert.IsTrue(cut.Markup.Contains("Send Invite"));
+    }
+
+    [TestMethod]
+    public void ShareModal_SwitchesToLinkTab_WhenClicked()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId);
+
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List"));
+
+        cut.FindAll("button").First(b => b.TextContent.Contains("Shareable Link")).Click();
+
+        Assert.IsTrue(cut.Markup.Contains("Generate Link"));
+        Assert.IsTrue(cut.Markup.Contains("linkAccessLevel"));
+    }
+
+    [TestMethod]
+    public void ShareModal_SendEmailInvite_ShowsSuccessMessage()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId, emailSuccess: true);
+
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List"));
+
+        cut.Find("#inviteEmail").Change("friend@example.com");
+        cut.FindAll("button").First(b => b.TextContent.Contains("Send Invite")).Click();
+
+        cut.WaitForAssertion(() => Assert.IsTrue(cut.Markup.Contains("Invitation sent")));
+    }
+
+    [TestMethod]
+    public void ShareModal_SendEmailInvite_ShowsErrorWhenEmailEmpty()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId, emailSuccess: true);
+
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List"));
+
+        // Do NOT set an email - leave it empty
+        cut.FindAll("button").First(b => b.TextContent.Contains("Send Invite")).Click();
+
+        cut.WaitForAssertion(() => Assert.IsTrue(cut.Markup.Contains("Please enter an email address")));
+    }
+
+    [TestMethod]
+    public void ShareModal_GenerateLink_DisplaysLinkAfterGeneration()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        var expectedToken = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId, generateLinkToken: expectedToken);
+
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List"));
+
+        cut.FindAll("button").First(b => b.TextContent.Contains("Shareable Link")).Click();
+        cut.FindAll("button").First(b => b.TextContent.Contains("Generate Link")).Click();
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.IsTrue(cut.Markup.Contains(expectedToken.ToString()));
+            Assert.IsTrue(cut.Markup.Contains("Shareable link generated"));
+        });
+    }
+
+    [TestMethod]
+    public void ShareModal_CloseButtonInvokesCallback()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureShareModalServices(ctx, listId);
+
+        var closeCalled = false;
+        var cut = ctx.RenderComponent<ShareIngredientListModal>(parameters => parameters
+            .Add(p => p.ListId, listId)
+            .Add(p => p.ListName, "Party List")
+            .Add(p => p.OnClose, EventCallback.Factory.Create(ctx, () => closeCalled = true)));
+
+        cut.FindAll("button").First(b => b.TextContent.Trim() == "Close").Click();
+
+        Assert.IsTrue(closeCalled);
+    }
+
+    private static void ConfigureShareModalServices(
+        Bunit.TestContext ctx,
+        Guid listId,
+        bool emailSuccess = false,
+        Guid? generateLinkToken = null)
+    {
+        var token = generateLinkToken ?? Guid.NewGuid();
+
+        var client = new IngredientListApiClient(new HttpClient(new RouteHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Post &&
+                request.RequestUri?.AbsolutePath == $"/api/ingredient-lists/{listId}/share/email")
+            {
+                return emailSuccess
+                    ? JsonResponse(HttpStatusCode.OK, new { message = "sent" })
+                    : JsonResponse(HttpStatusCode.InternalServerError, new { });
+            }
+
+            if (request.Method == HttpMethod.Post &&
+                request.RequestUri?.AbsolutePath == $"/api/ingredient-lists/{listId}/share/link")
+            {
+                return JsonResponse(HttpStatusCode.OK, new
+                {
+                    Token = token,
+                    Url = $"https://test.api/api/ingredient-lists/shared/{token}",
+                    AccessLevel = "Viewer",
+                    ExpiresAt = DateTime.UtcNow.AddDays(7)
+                });
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }))
+        {
+            BaseAddress = new Uri("https://test.api")
+        });
+
+        ctx.Services.AddSingleton(client);
+
+        // JSInterop is provided by bUnit TestContext automatically; no extra registration needed
     }
 
     private sealed class FakeIngredientListSignalRClient(NavigationManager navigationManager)

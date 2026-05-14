@@ -330,6 +330,36 @@ Implemented the authenticated ingredient-lists index/discovery page with tabbed 
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #10 - Implement share modal and link/email invitation UI
+
+---
+
+## 2026-05-14 - Implement share modal and link/email invitation UI (Plan: add-shared-ingredient-lists, Task #10)
+
+Created `ShareIngredientListModal.razor` with two-tab UI (Email Invite / Shareable Link) and integrated it into the detail page, replacing the Task 8 placeholder.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/ShareIngredientListModal.razor (new)
+- RecipeManager.Web/Components/Pages/IngredientListDetail.razor (replaced placeholder)
+- RecipeManager.Tests/IngredientListApiClientTests.cs (6 new modal tests)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 45/45 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests`)
+- New modal component tests:
+  - ShareModal_RendersEmailTabByDefault
+  - ShareModal_SwitchesToLinkTab_WhenClicked
+  - ShareModal_SendEmailInvite_ShowsSuccessMessage
+  - ShareModal_SendEmailInvite_ShowsErrorWhenEmailEmpty
+  - ShareModal_GenerateLink_DisplaysLinkAfterGeneration
+  - ShareModal_CloseButtonInvokesCallback
+
+**Gotchas/Notes:**
+- bUnit's `TestContext` provides `JSInterop` automatically; no manual `IJSRuntime` registration needed.
+- Modal uses `OnClose` EventCallback to let parent page hide it.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #11 - Create integration tests for ingredient lists and sharing
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
