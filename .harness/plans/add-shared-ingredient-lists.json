@@ -202,7 +202,7 @@
     {
       "id": 11,
       "title": "Create integration tests for ingredient lists and sharing",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientListApiTests.cs created with integration tests",
         "Tests verify CRUD operations on ingredient lists",

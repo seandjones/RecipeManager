@@ -461,6 +461,104 @@ public class IngredientListApiIntegrationTests
         Assert.AreEqual(HttpStatusCode.Forbidden, getAfterRevoke.StatusCode);
     }
 
+    [TestMethod]
+    public async Task ViewerSharedUser_CanReadList_ButCannotModifyIngredients()
+    {
+        var ownerId = Guid.NewGuid();
+        AddUserHeader(ownerId);
+
+        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "View Only List",
+            Description = "Viewer access test"
+        });
+
+        var list = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var viewerUserId = Guid.NewGuid();
+        using var setupScope = _factory!.Services.CreateScope();
+        var db = setupScope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
+        db.ListSharings.Add(new ListSharing
+        {
+            Id = Guid.NewGuid(),
+            IngredientListId = list!.Id,
+            SharedWithUserId = viewerUserId,
+            ShareType = "Email",
+            AccessLevel = AccessLevel.Viewer,
+            CreatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        AddUserHeader(viewerUserId);
+
+        var getResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        Assert.AreEqual(HttpStatusCode.OK, getResponse.StatusCode);
+
+        var addIngredientResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients", new IngredientRequest
+        {
+            Name = "Viewer Item",
+            Quantity = "1",
+            Unit = "pcs",
+            IsChecked = false
+        });
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, addIngredientResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task NonOwner_CannotShareList_ViaEmail()
+    {
+        var ownerId = Guid.NewGuid();
+        AddUserHeader(ownerId);
+
+        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Owner-Protected List",
+            Description = "Share authorization check"
+        });
+
+        var list = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        AddUserHeader(Guid.NewGuid());
+
+        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        {
+            Email = "attacker@example.com",
+            AccessLevel = "Editor"
+        });
+
+        Assert.AreEqual(HttpStatusCode.Forbidden, shareResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task GetSharingInfo_RequiresOwner_RejectNonOwner()
+    {
+        var ownerId = Guid.NewGuid();
+        AddUserHeader(ownerId);
+
+        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Sharing Info List",
+            Description = "Owner-only sharing info"
+        });
+
+        var list = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var sharingInfoOwnerResponse = await _client.GetAsync($"/api/ingredient-lists/{list!.Id}/sharing");
+        Assert.AreEqual(HttpStatusCode.OK, sharingInfoOwnerResponse.StatusCode);
+
+        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        AddUserHeader(Guid.NewGuid());
+
+        var sharingInfoNonOwnerResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        Assert.AreEqual(HttpStatusCode.Forbidden, sharingInfoNonOwnerResponse.StatusCode);
+    }
+
     private void AddUserHeader(Guid userId)
     {
         _client!.DefaultRequestHeaders.Add("X-User-Id", userId.ToString());

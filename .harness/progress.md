@@ -360,6 +360,38 @@ Created `ShareIngredientListModal.razor` with two-tab UI (Email Invite / Shareab
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #11 - Create integration tests for ingredient lists and sharing
+
+---
+
+## 2026-05-14 - Create integration tests for ingredient lists and sharing (Plan: add-shared-ingredient-lists, Task #11)
+
+Extended existing test files with real-time event broadcasting tests and access-control edge cases to satisfy all acceptance criteria.
+
+**Files Changed:**
+- RecipeManager.Tests/IngredientListHubTests.cs (4 new tests)
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs (3 new tests)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- `IngredientListApiIntegrationTests`: 13/13 passed
+- `IngredientListHubTests`: 8/8 passed
+- Combined: 21/21 passed
+- New tests added:
+  - UpdateIngredientCheckState_SavesToDatabaseAndBroadcastsEvent
+  - AddIngredient_SavesToDatabaseAndBroadcastsEvent
+  - RemoveIngredient_DeletesFromDatabaseAndBroadcastsEvent
+  - UpdateIngredientCheckState_WithUnauthorizedUser_ThrowsHubException
+  - ViewerSharedUser_CanReadList_ButCannotModifyIngredients
+  - NonOwner_CannotShareList_ViaEmail
+  - GetSharingInfo_RequiresOwner_RejectNonOwner
+
+**Gotchas/Notes:**
+- Viewer access rejection (`Forbidden`) is enforced by `HasIngredientListWriteAccessAsync` in Program.cs.
+- Hub event broadcasting verified via Moq `Verify` on the group client mock.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #12 - Update Copilot instructions with ingredient list architecture and patterns
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

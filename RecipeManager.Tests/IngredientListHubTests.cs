@@ -133,6 +133,180 @@ public class IngredientListHubTests
         groups.Verify(g => g.AddToGroupAsync("conn-shared", $"ingredient-list-{listId}", It.IsAny<CancellationToken>()), Times.Once);
     }
 
+    [TestMethod]
+    public async Task UpdateIngredientCheckState_SavesToDatabaseAndBroadcastsEvent()
+    {
+        await using var db = CreateContext();
+        var ownerId = Guid.NewGuid();
+        var listId = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+
+        db.IngredientLists.Add(new IngredientList
+        {
+            Id = listId,
+            Name = "Test List",
+            OwnerId = ownerId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        db.Ingredients.Add(new Ingredient
+        {
+            Id = ingredientId,
+            IngredientListId = listId,
+            Name = "Milk",
+            IsChecked = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await db.SaveChangesAsync();
+
+        var clientsMock = new Mock<IHubCallerClients<IIngredientListClient>>();
+        var groupClientMock = new Mock<IIngredientListClient>();
+        clientsMock.Setup(c => c.Group($"ingredient-list-{listId}")).Returns(groupClientMock.Object);
+
+        var hub = new IngredientListHub(db)
+        {
+            Context = CreateHubContext("conn-1", ownerId),
+            Groups = new Mock<IGroupManager>().Object,
+            Clients = clientsMock.Object
+        };
+
+        await hub.UpdateIngredientCheckState(listId, ingredientId, isChecked: true);
+
+        var ingredient = await db.Ingredients.FindAsync(ingredientId);
+        Assert.IsTrue(ingredient!.IsChecked);
+
+        groupClientMock.Verify(c => c.OnIngredientCheckStateUpdated(listId, ingredientId, true), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task AddIngredient_SavesToDatabaseAndBroadcastsEvent()
+    {
+        await using var db = CreateContext();
+        var ownerId = Guid.NewGuid();
+        var listId = Guid.NewGuid();
+
+        db.IngredientLists.Add(new IngredientList
+        {
+            Id = listId,
+            Name = "Broadcast List",
+            OwnerId = ownerId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var clientsMock = new Mock<IHubCallerClients<IIngredientListClient>>();
+        var groupClientMock = new Mock<IIngredientListClient>();
+        clientsMock.Setup(c => c.Group($"ingredient-list-{listId}")).Returns(groupClientMock.Object);
+
+        var hub = new IngredientListHub(db)
+        {
+            Context = CreateHubContext("conn-1", ownerId),
+            Groups = new Mock<IGroupManager>().Object,
+            Clients = clientsMock.Object
+        };
+
+        var newIngredient = new Ingredient
+        {
+            Name = "Butter",
+            Quantity = "200",
+            Unit = "g",
+            IsChecked = false
+        };
+
+        await hub.AddIngredient(listId, newIngredient);
+
+        Assert.AreEqual(1, await db.Ingredients.CountAsync(i => i.IngredientListId == listId));
+        groupClientMock.Verify(c => c.OnIngredientAdded(listId, It.Is<Ingredient>(i => i.Name == "Butter")), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task RemoveIngredient_DeletesFromDatabaseAndBroadcastsEvent()
+    {
+        await using var db = CreateContext();
+        var ownerId = Guid.NewGuid();
+        var listId = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+
+        db.IngredientLists.Add(new IngredientList
+        {
+            Id = listId,
+            Name = "Remove Test",
+            OwnerId = ownerId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        db.Ingredients.Add(new Ingredient
+        {
+            Id = ingredientId,
+            IngredientListId = listId,
+            Name = "Sugar",
+            IsChecked = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await db.SaveChangesAsync();
+
+        var clientsMock = new Mock<IHubCallerClients<IIngredientListClient>>();
+        var groupClientMock = new Mock<IIngredientListClient>();
+        clientsMock.Setup(c => c.Group($"ingredient-list-{listId}")).Returns(groupClientMock.Object);
+
+        var hub = new IngredientListHub(db)
+        {
+            Context = CreateHubContext("conn-1", ownerId),
+            Groups = new Mock<IGroupManager>().Object,
+            Clients = clientsMock.Object
+        };
+
+        await hub.RemoveIngredient(listId, ingredientId);
+
+        Assert.AreEqual(0, await db.Ingredients.CountAsync(i => i.Id == ingredientId));
+        groupClientMock.Verify(c => c.OnIngredientRemoved(listId, ingredientId), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task UpdateIngredientCheckState_WithUnauthorizedUser_ThrowsHubException()
+    {
+        await using var db = CreateContext();
+        var ownerId = Guid.NewGuid();
+        var unauthorizedUserId = Guid.NewGuid();
+        var listId = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+
+        db.IngredientLists.Add(new IngredientList
+        {
+            Id = listId,
+            Name = "Private List",
+            OwnerId = ownerId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+
+        db.Ingredients.Add(new Ingredient
+        {
+            Id = ingredientId,
+            IngredientListId = listId,
+            Name = "Salt",
+            IsChecked = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        await db.SaveChangesAsync();
+
+        var hub = new IngredientListHub(db)
+        {
+            Context = CreateHubContext("conn-bad", unauthorizedUserId),
+            Groups = new Mock<IGroupManager>().Object,
+            Clients = new Mock<IHubCallerClients<IIngredientListClient>>().Object
+        };
+
+        await Assert.ThrowsExactlyAsync<HubException>(() =>
+            hub.UpdateIngredientCheckState(listId, ingredientId, isChecked: true));
+    }
+
     private static HubCallerContext CreateHubContext(string connectionId, Guid? userId)
     {
         var mock = new Mock<HubCallerContext>();
