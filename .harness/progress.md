@@ -392,6 +392,57 @@ Extended existing test files with real-time event broadcasting tests and access-
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #12 - Update Copilot instructions with ingredient list architecture and patterns
+
+---
+
+## 2026-05-14 - Update Copilot instructions with ingredient list architecture and patterns (Plan: add-shared-ingredient-lists, Task #12)
+
+Added comprehensive ingredient list documentation to .github/copilot-instructions.md covering all architecture and integration patterns.
+
+**Files Changed:**
+- .github/copilot-instructions.md (new "Ingredient Lists & Real-Time Synchronization" section)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Content Added:**
+- Data Model section (core entities, access levels)
+- SignalR Integration Pattern (hub interface, registration, authorization)
+- Real-Time Synchronization Pattern (component lifecycle, event handlers, cleanup)
+- Sharing & Authorization Pattern (email flow, link flow, access control)
+- API Client Pattern for Real-Time Features (IngredientListApiClient methods, registration)
+- Testing Examples (integration tests, hub tests)
+- Updated Project-Specific Details (SignalR endpoint, IngredientListDbContext databases)
+
+**Evaluator Verdict:** OVERALL PASS — All 6 acceptance criteria met, plus bonus testing examples and connection management details.
+
+---
+
+## Plan Summary: "Add Shared Ingredient Lists with Real-Time Synchronization"
+
+✅ **All 12 tasks completed successfully**
+
+### Task Breakdown:
+1. ✅ Task 1: Database schema design (3 migrations)
+2. ✅ Task 2: DbContext configuration
+3. ✅ Task 3: SignalR hub setup
+4. ✅ Task 4: API CRUD endpoints
+5. ✅ Task 5: Sharing (email + links)
+6. ✅ Task 6: IngredientListApiClient
+7. ✅ Task 7: IngredientListSignalRClient
+8. ✅ Task 8: IngredientListDetail.razor page
+9. ✅ Task 9: IngredientLists.razor index page
+10. ✅ Task 10: ShareIngredientListModal.razor component
+11. ✅ Task 11: Integration tests (21 tests, all passing)
+12. ✅ Task 12: Copilot documentation
+
+### Key Metrics:
+- **Test Coverage**: 56 tests passing (API integration, hub unit, component unit)
+- **Real-Time**: SignalR with exponential backoff reconnection, group-based broadcasting
+- **Access Control**: Owner/Editor/Viewer levels with write-gate enforcement
+- **Sharing**: Email invites + shareable tokens with expiration
+- **UI**: Tabbed share modal, real-time ingredient sync, index/detail pages
+
+**Status**: Plan complete - Ready for user acceptance testing and deployment
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
