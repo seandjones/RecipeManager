@@ -1,9 +1,15 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 using Moq.Protected;
+using Bunit;
+using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Http;
 using RecipeManager.Web.Models;
+using RecipeManager.Web.Components.Pages;
 using RecipeManager.Web.Services;
 using System.Net;
+using System.Security.Claims;
+using System.Reflection;
 using System.Text.Json;
 
 namespace RecipeManager.Tests;
@@ -354,6 +360,158 @@ public class IngredientListApiClientTests
         Assert.AreEqual(1, result.Recipes.Count);
     }
 
+    [TestMethod]
+    public void IngredientListDetailPage_RendersLoadedData()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureIngredientListDetailServices(ctx, listId);
+
+        var cut = ctx.RenderComponent<IngredientListDetail>(parameters => parameters.Add(p => p.Id, listId));
+
+        cut.WaitForAssertion(() =>
+        {
+            Assert.IsTrue(cut.Markup.Contains("Weekly List"));
+            Assert.IsTrue(cut.Markup.Contains("Fresh produce and pantry"));
+            Assert.IsTrue(cut.Markup.Contains("Tomatoes"));
+            Assert.IsTrue(cut.Markup.Contains("Tomato Soup"));
+        });
+    }
+
+    [TestMethod]
+    public async Task IngredientListDetailPage_UpdatesViaSignalREvent()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureIngredientListDetailServices(ctx, listId);
+        var signalR = (FakeIngredientListSignalRClient)ctx.Services.GetRequiredService<IngredientListSignalRClient>();
+
+        var cut = ctx.RenderComponent<IngredientListDetail>(parameters => parameters.Add(p => p.Id, listId));
+        cut.WaitForAssertion(() => Assert.IsTrue(cut.Markup.Contains("Tomatoes")));
+
+        await signalR.EmitIngredientAddedAsync(listId, new IngredientItem
+        {
+            Id = Guid.NewGuid(),
+            Name = "Realtime Basil",
+            Quantity = "1",
+            Unit = "bunch",
+            IsChecked = false,
+            CreatedAt = DateTime.UtcNow
+        });
+
+        cut.WaitForAssertion(() => Assert.IsTrue(cut.Markup.Contains("Realtime Basil")));
+    }
+
+    [TestMethod]
+    public void IngredientListDetailPage_CheckStateSyncsAcrossOpenViews()
+    {
+        using var ctx = new Bunit.TestContext();
+        var listId = Guid.NewGuid();
+        ConfigureIngredientListDetailServices(ctx, listId);
+
+        var cutA = ctx.RenderComponent<IngredientListDetail>(parameters => parameters.Add(p => p.Id, listId));
+        var cutB = ctx.RenderComponent<IngredientListDetail>(parameters => parameters.Add(p => p.Id, listId));
+
+        cutA.WaitForAssertion(() => Assert.AreEqual(0, cutA.FindAll("input[type=checkbox][checked]").Count));
+        cutB.WaitForAssertion(() => Assert.AreEqual(0, cutB.FindAll("input[type=checkbox][checked]").Count));
+
+        cutA.Find("input[type=checkbox]").Change(true);
+
+        cutA.WaitForAssertion(() => Assert.AreEqual(1, cutA.FindAll("input[type=checkbox][checked]").Count));
+        cutB.WaitForAssertion(() => Assert.AreEqual(1, cutB.FindAll("input[type=checkbox][checked]").Count));
+    }
+
+    private static void ConfigureIngredientListDetailServices(Bunit.TestContext ctx, Guid listId)
+    {
+        var userId = Guid.NewGuid();
+        var seededIngredientId = Guid.NewGuid();
+        var httpContextAccessor = new HttpContextAccessor
+        {
+            HttpContext = new DefaultHttpContext
+            {
+                User = new ClaimsPrincipal(new ClaimsIdentity([
+                    new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                    new Claim(ClaimTypes.Email, "test@example.com")
+                ], "test"))
+            }
+        };
+
+        var ingredientListApiClient = new IngredientListApiClient(new HttpClient(new RouteHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsolutePath == $"/api/ingredient-lists/{listId}")
+            {
+                var payload = new
+                {
+                    Id = listId,
+                    Name = "Weekly List",
+                    Description = "Fresh produce and pantry",
+                    OwnerId = userId,
+                    CreatedAt = DateTime.UtcNow,
+                    UpdatedAt = DateTime.UtcNow,
+                    Ingredients = new[]
+                    {
+                        new { Id = seededIngredientId, Name = "Tomatoes", Quantity = "3", Unit = "pcs", IsChecked = false, CreatedAt = DateTime.UtcNow }
+                    },
+                    Recipes = new[]
+                    {
+                        new { Id = 7, Name = "Tomato Soup", Description = "Simple soup" }
+                    }
+                };
+
+                return JsonResponse(HttpStatusCode.OK, payload);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }))
+        {
+            BaseAddress = new Uri("https://test.api")
+        });
+
+        var recipeApiClient = new RecipeApiClient(new HttpClient(new RouteHttpMessageHandler(request =>
+        {
+            if (request.Method == HttpMethod.Get && request.RequestUri?.AbsolutePath == "/api/recipes/")
+            {
+                var payload = new[]
+                {
+                    new
+                    {
+                        Id = 7,
+                        Name = "Tomato Soup",
+                        Description = "Simple soup",
+                        Ingredients = "Tomatoes\nSalt",
+                        Instructions = "Blend\nCook",
+                        PrepTimeMinutes = 10,
+                        CookTimeMinutes = 20,
+                        Servings = 4,
+                        CreatedAt = DateTime.UtcNow,
+                        UpdatedAt = DateTime.UtcNow
+                    }
+                };
+
+                return JsonResponse(HttpStatusCode.OK, payload);
+            }
+
+            return new HttpResponseMessage(HttpStatusCode.NotFound);
+        }))
+        {
+            BaseAddress = new Uri("https://test.api")
+        });
+
+        ctx.Services.AddSingleton<IHttpContextAccessor>(httpContextAccessor);
+        ctx.Services.AddScoped<AuthenticationService>();
+        ctx.Services.AddSingleton<IngredientListSignalRClient, FakeIngredientListSignalRClient>();
+        ctx.Services.AddSingleton(ingredientListApiClient);
+        ctx.Services.AddSingleton(recipeApiClient);
+    }
+
+    private static HttpResponseMessage JsonResponse(HttpStatusCode statusCode, object payload)
+    {
+        return new HttpResponseMessage(statusCode)
+        {
+            Content = new StringContent(JsonSerializer.Serialize(payload))
+        };
+    }
+
     private static IngredientListApiClient CreateClient(HttpStatusCode statusCode, object? responseContent = null, Action<HttpRequestMessage>? assertRequest = null)
     {
         var handler = new Mock<HttpMessageHandler>();
@@ -381,5 +539,46 @@ public class IngredientListApiClientTests
         };
 
         return new IngredientListApiClient(httpClient);
+    }
+
+    private sealed class RouteHttpMessageHandler(Func<HttpRequestMessage, HttpResponseMessage> handler) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => Task.FromResult(handler(request));
+    }
+
+    private sealed class FakeIngredientListSignalRClient(NavigationManager navigationManager)
+        : IngredientListSignalRClient(navigationManager)
+    {
+        public override Task InitializeAsync(Guid listId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public override Task DisconnectAsync(Guid listId, CancellationToken cancellationToken = default)
+            => Task.CompletedTask;
+
+        public override async Task UpdateIngredientCheckStateAsync(Guid listId, Guid ingredientId, bool isChecked, CancellationToken cancellationToken = default)
+            => await EmitIngredientCheckStateUpdatedAsync(listId, ingredientId, isChecked);
+
+        public async Task EmitIngredientAddedAsync(Guid listId, IngredientItem ingredient)
+        {
+            var field = typeof(IngredientListSignalRClient)
+                .GetField("OnIngredientAdded", BindingFlags.Instance | BindingFlags.NonPublic);
+            var callback = field?.GetValue(this) as Func<Guid, IngredientItem, Task>;
+            if (callback is not null)
+            {
+                await callback(listId, ingredient);
+            }
+        }
+
+        private async Task EmitIngredientCheckStateUpdatedAsync(Guid listId, Guid ingredientId, bool isChecked)
+        {
+            var field = typeof(IngredientListSignalRClient)
+                .GetField("OnIngredientCheckStateUpdated", BindingFlags.Instance | BindingFlags.NonPublic);
+            var callback = field?.GetValue(this) as Func<Guid, Guid, bool, Task>;
+            if (callback is not null)
+            {
+                await callback(listId, ingredientId, isChecked);
+            }
+        }
     }
 }

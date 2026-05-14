@@ -17,7 +17,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
     public event Func<Guid, int, Task>? OnRecipeAdded;
     public event Func<Guid, int, Task>? OnRecipeRemoved;
 
-    public async Task InitializeAsync(Guid listId, CancellationToken cancellationToken = default)
+    public virtual async Task InitializeAsync(Guid listId, CancellationToken cancellationToken = default)
     {
         await _connectionLock.WaitAsync(cancellationToken);
         try
@@ -41,7 +41,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         }
     }
 
-    public async Task DisconnectAsync(Guid listId, CancellationToken cancellationToken = default)
+    public virtual async Task DisconnectAsync(Guid listId, CancellationToken cancellationToken = default)
     {
         await _connectionLock.WaitAsync(cancellationToken);
         try
@@ -59,7 +59,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         }
     }
 
-    public async Task UpdateIngredientCheckStateAsync(Guid listId, Guid ingredientId, bool isChecked, CancellationToken cancellationToken = default)
+    public virtual async Task UpdateIngredientCheckStateAsync(Guid listId, Guid ingredientId, bool isChecked, CancellationToken cancellationToken = default)
     {
         if (_connection is null)
         {
@@ -69,7 +69,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         await _connection.InvokeAsync("UpdateIngredientCheckState", listId, ingredientId, isChecked, cancellationToken);
     }
 
-    public async Task AddIngredientAsync(Guid listId, IngredientRequest ingredient, CancellationToken cancellationToken = default)
+    public virtual async Task AddIngredientAsync(Guid listId, IngredientRequest ingredient, CancellationToken cancellationToken = default)
     {
         if (_connection is null)
         {
@@ -85,7 +85,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         }, cancellationToken);
     }
 
-    public async Task RemoveIngredientAsync(Guid listId, Guid ingredientId, CancellationToken cancellationToken = default)
+    public virtual async Task RemoveIngredientAsync(Guid listId, Guid ingredientId, CancellationToken cancellationToken = default)
     {
         if (_connection is null)
         {
@@ -95,7 +95,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         await _connection.InvokeAsync("RemoveIngredient", listId, ingredientId, cancellationToken);
     }
 
-    public async Task AddRecipeAsync(Guid listId, int recipeId, CancellationToken cancellationToken = default)
+    public virtual async Task AddRecipeAsync(Guid listId, int recipeId, CancellationToken cancellationToken = default)
     {
         if (_connection is null)
         {
@@ -105,7 +105,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         await _connection.InvokeAsync("AddRecipeToList", listId, recipeId, cancellationToken);
     }
 
-    public async Task RemoveRecipeAsync(Guid listId, int recipeId, CancellationToken cancellationToken = default)
+    public virtual async Task RemoveRecipeAsync(Guid listId, int recipeId, CancellationToken cancellationToken = default)
     {
         if (_connection is null)
         {

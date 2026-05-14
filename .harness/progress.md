@@ -276,6 +276,32 @@ Implemented a scoped Web SignalR client service for ingredient-list real-time up
 - Evaluator verdict: OVERALL PASS.
 
 **Next:** Task #8 - Build IngredientList detail/management page
+
+## 2026-05-14 - Build IngredientList detail/management page (Plan: add-shared-ingredient-lists, Task #8)
+
+Implemented the authenticated ingredient-list detail page with streaming rendering, list management actions, recipe association management, owner-only controls, and live SignalR-driven UI synchronization for ingredient and recipe updates.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/IngredientListDetail.razor
+- RecipeManager.Web/Services/IngredientListSignalRClient.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 41/41 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests|IngredientListHubTests`)
+- Added page/component tests for:
+  - initial render and loaded content
+  - realtime ingredient event updates
+  - cross-view checkbox synchronization behavior
+
+**Gotchas/Notes:**
+- Route parameter normalized to `/ingredient-lists/{id:guid}` to align with acceptance wording.
+- Top-of-page list description is now shown with the heading.
+- Mutation controls are gated behind authorization checks in UI (`canManageItems`).
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #9 - Build ingredient lists index/discovery page
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 

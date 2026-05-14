@@ -135,7 +135,7 @@
     {
       "id": 8,
       "title": "Build IngredientList detail/management page",
-      "status": "pending",
+      "status": "complete",
       "acceptance_criteria": [
         "IngredientListDetail.razor component created at /ingredient-lists/{id}",
         "@page directive with id route parameter",
