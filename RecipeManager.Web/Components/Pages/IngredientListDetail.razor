@@ -1,0 +1,619 @@
+@page "/ingredient-lists/{id:guid}"
+@attribute [Authorize]
+@attribute [StreamRendering(true)]
+@rendermode InteractiveServer
+@implements IAsyncDisposable
+@inject IngredientListApiClient IngredientListApi
+@inject IngredientListSignalRClient SignalRClient
+@inject RecipeApiClient RecipeApi
+@inject AuthenticationService AuthService
+@inject NavigationManager Navigation
+
+<PageTitle>@(list?.Name ?? "Ingredient List") - RecipeManager</PageTitle>
+
+@if (isLoading)
+{
+    <p class="text-muted"><em>Loading ingredient list...</em></p>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (list is null)
+{
+    <div class="alert alert-warning">
+        <h4>Ingredient list not found</h4>
+        <p class="mb-0">The list you requested does not exist or you do not have access.</p>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center mb-4 gap-3 flex-wrap">
+        <a href="/" class="btn btn-outline-secondary btn-sm">
+            <span class="bi bi-arrow-left" aria-hidden="true"></span> Back
+        </a>
+        <h1 class="mb-0 flex-grow-1">@list.Name</h1>
+
+        @if (isOwner)
+        {
+            <button class="btn btn-outline-primary btn-sm" @onclick="(() => showShareModal = true)">
+                <span class="bi bi-share" aria-hidden="true"></span> Share
+            </button>
+            <button class="btn btn-outline-danger btn-sm" @onclick="DeleteListAsync">
+                <span class="bi bi-trash" aria-hidden="true"></span> Delete List
+            </button>
+        }
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(list.Description))
+    {
+        <p class="lead text-muted mt-n2 mb-3">@list.Description</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(actionMessage))
+    {
+        <div class="alert alert-success">@actionMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(actionError))
+    {
+        <div class="alert alert-danger">@actionError</div>
+    }
+
+    @if (isOwner)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Edit List Details</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <label class="form-label" for="list-name">Name</label>
+                        <input id="list-name" class="form-control" @bind="editName" />
+                    </div>
+                    <div class="col-md-7">
+                        <label class="form-label" for="list-description">Description</label>
+                        <input id="list-description" class="form-control" @bind="editDescription" />
+                    </div>
+                </div>
+                <button class="btn btn-primary mt-3" @onclick="SaveListAsync" disabled="@isSavingList">
+                    @(isSavingList ? "Saving..." : "Save List")
+                </button>
+            </div>
+        </div>
+    }
+
+    <div class="row g-4">
+        <div class="col-lg-7">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Ingredients</h2>
+                    <span class="badge text-bg-secondary">@list.Ingredients.Count item(s)</span>
+                </div>
+                <div class="card-body">
+                    @if (list.Ingredients.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No ingredients yet.</p>
+                    }
+                    else
+                    {
+                        <div class="table-responsive">
+                            <table class="table align-middle">
+                                <thead>
+                                    <tr>
+                                        <th>Done</th>
+                                        <th>Name</th>
+                                        <th>Quantity</th>
+                                        <th>Unit</th>
+                                        <th class="text-end">Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    @foreach (var ingredient in list.Ingredients.OrderBy(i => i.CreatedAt))
+                                    {
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox"
+                                                       checked="@ingredient.IsChecked"
+                                                       disabled="@(!canManageItems)"
+                                                       @onchange="async e => await UpdateCheckStateAsync(ingredient, e.Value as bool? == true)" />
+                                            </td>
+                                            <td>@ingredient.Name</td>
+                                            <td>@ingredient.Quantity</td>
+                                            <td>@ingredient.Unit</td>
+                                            <td class="text-end">
+                                                @if (canManageItems)
+                                                {
+                                                    <button class="btn btn-sm btn-outline-danger"
+                                                            @onclick="() => RemoveIngredientAsync(ingredient.Id)">
+                                                        Remove
+                                                    </button>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+
+            @if (canManageItems)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Add Ingredient</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="row g-3">
+                            <div class="col-md-5">
+                                <input class="form-control" placeholder="Ingredient name" @bind="newIngredientName" />
+                            </div>
+                            <div class="col-md-3">
+                                <input class="form-control" placeholder="Quantity" @bind="newIngredientQuantity" />
+                            </div>
+                            <div class="col-md-2">
+                                <input class="form-control" placeholder="Unit" @bind="newIngredientUnit" />
+                            </div>
+                            <div class="col-md-2 d-grid">
+                                <button class="btn btn-primary" @onclick="AddIngredientAsync" disabled="@isAddingIngredient">
+                                    @(isAddingIngredient ? "Adding..." : "Add")
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card mb-4">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <h2 class="h5 mb-0">Associated Recipes</h2>
+                    <span class="badge text-bg-secondary">@list.Recipes.Count recipe(s)</span>
+                </div>
+                <div class="card-body">
+                    @if (list.Recipes.Count == 0)
+                    {
+                        <p class="text-muted mb-0">No associated recipes yet.</p>
+                    }
+                    else
+                    {
+                        <ul class="list-group list-group-flush">
+                            @foreach (var recipe in list.Recipes.OrderBy(r => r.Name))
+                            {
+                                <li class="list-group-item d-flex justify-content-between align-items-center">
+                                    <a href="/recipes/@recipe.Id">@recipe.Name</a>
+                                    @if (canManageItems)
+                                    {
+                                        <button class="btn btn-sm btn-outline-danger"
+                                                @onclick="() => RemoveRecipeAsync(recipe.Id)">
+                                            Remove
+                                        </button>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    }
+                </div>
+            </div>
+
+            @if (canManageItems)
+            {
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="h5 mb-0">Add Existing Recipe</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="d-flex gap-2">
+                            <select class="form-select" @bind="selectedRecipeId">
+                                <option value="0">Select a recipe</option>
+                                @foreach (var recipe in availableRecipes.OrderBy(r => r.Name))
+                                {
+                                    <option value="@recipe.Id">@recipe.Name</option>
+                                }
+                            </select>
+                            <button class="btn btn-primary"
+                                    @onclick="AddRecipeAsync"
+                                    disabled="@(selectedRecipeId <= 0 || isAddingRecipe)">
+                                @(isAddingRecipe ? "Adding..." : "Add")
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+@if (showShareModal && list is not null)
+{
+    <ShareIngredientListModal ListId="list.Id"
+                              ListName="@list.Name"
+                              OnClose="(() => showShareModal = false)" />
+}
+
+@code {
+    [Parameter] public Guid Id { get; set; }
+
+    private IngredientList? list;
+    private Recipe[] availableRecipes = [];
+    private Guid? currentUserId;
+
+    private bool isLoading = true;
+    private bool isSavingList;
+    private bool isAddingIngredient;
+    private bool isAddingRecipe;
+    private bool showShareModal;
+
+    private string? loadError;
+    private string? actionError;
+    private string? actionMessage;
+
+    private string editName = string.Empty;
+    private string? editDescription;
+
+    private string newIngredientName = string.Empty;
+    private string? newIngredientQuantity;
+    private string? newIngredientUnit;
+
+    private int selectedRecipeId;
+
+    private bool isOwner => list is not null && currentUserId.HasValue && list.OwnerId == currentUserId.Value;
+    private bool canManageItems => isOwner;
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = AuthService.GetCurrentUserId();
+        await LoadPageDataAsync();
+
+        if (list is not null)
+        {
+            WireSignalREvents();
+            await SignalRClient.InitializeAsync(Id);
+        }
+    }
+
+    private async Task LoadPageDataAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            list = await IngredientListApi.GetListAsync(Id);
+            availableRecipes = await RecipeApi.GetRecipesAsync();
+
+            if (list is not null)
+            {
+                editName = list.Name;
+                editDescription = list.Description;
+            }
+            else
+            {
+                loadError = "Unable to load list details.";
+            }
+        }
+        catch
+        {
+            loadError = "Something went wrong while loading this ingredient list.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void WireSignalREvents()
+    {
+        SignalRClient.OnIngredientAdded += HandleIngredientAdded;
+        SignalRClient.OnIngredientRemoved += HandleIngredientRemoved;
+        SignalRClient.OnIngredientUpdated += HandleIngredientUpdated;
+        SignalRClient.OnIngredientCheckStateUpdated += HandleIngredientCheckUpdated;
+        SignalRClient.OnRecipeAdded += HandleRecipeAdded;
+        SignalRClient.OnRecipeRemoved += HandleRecipeRemoved;
+    }
+
+    private void UnwireSignalREvents()
+    {
+        SignalRClient.OnIngredientAdded -= HandleIngredientAdded;
+        SignalRClient.OnIngredientRemoved -= HandleIngredientRemoved;
+        SignalRClient.OnIngredientUpdated -= HandleIngredientUpdated;
+        SignalRClient.OnIngredientCheckStateUpdated -= HandleIngredientCheckUpdated;
+        SignalRClient.OnRecipeAdded -= HandleRecipeAdded;
+        SignalRClient.OnRecipeRemoved -= HandleRecipeRemoved;
+    }
+
+    private async Task SaveListAsync()
+    {
+        if (list is null || string.IsNullOrWhiteSpace(editName))
+        {
+            actionError = "List name is required.";
+            return;
+        }
+
+        isSavingList = true;
+        actionError = null;
+        actionMessage = null;
+
+        var updated = await IngredientListApi.UpdateListAsync(list.Id, new IngredientListRequest
+        {
+            Name = editName,
+            Description = editDescription
+        });
+
+        isSavingList = false;
+
+        if (updated is null)
+        {
+            actionError = "Failed to update list. Please try again.";
+            return;
+        }
+
+        list.Name = updated.Name;
+        list.Description = updated.Description;
+        list.UpdatedAt = updated.UpdatedAt;
+        actionMessage = "List details saved.";
+    }
+
+    private async Task DeleteListAsync()
+    {
+        if (list is null)
+        {
+            return;
+        }
+
+        actionError = null;
+        actionMessage = null;
+
+        var deleted = await IngredientListApi.DeleteListAsync(list.Id);
+        if (!deleted)
+        {
+            actionError = "Failed to delete list. Please try again.";
+            return;
+        }
+
+        Navigation.NavigateTo("/ingredient-lists", forceLoad: true);
+    }
+
+    private async Task AddIngredientAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newIngredientName))
+        {
+            actionError = "Ingredient name is required.";
+            return;
+        }
+
+        isAddingIngredient = true;
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            await SignalRClient.AddIngredientAsync(Id, new IngredientRequest
+            {
+                Name = newIngredientName,
+                Quantity = newIngredientQuantity,
+                Unit = newIngredientUnit,
+                IsChecked = false
+            });
+
+            newIngredientName = string.Empty;
+            newIngredientQuantity = null;
+            newIngredientUnit = null;
+        }
+        catch
+        {
+            actionError = "Unable to add ingredient. You may not have permission.";
+        }
+        finally
+        {
+            isAddingIngredient = false;
+        }
+    }
+
+    private async Task RemoveIngredientAsync(Guid ingredientId)
+    {
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            await SignalRClient.RemoveIngredientAsync(Id, ingredientId);
+        }
+        catch
+        {
+            actionError = "Unable to remove ingredient. You may not have permission.";
+        }
+    }
+
+    private async Task UpdateCheckStateAsync(IngredientItem ingredient, bool isChecked)
+    {
+        if (!canManageItems)
+        {
+            return;
+        }
+
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            await SignalRClient.UpdateIngredientCheckStateAsync(Id, ingredient.Id, isChecked);
+        }
+        catch
+        {
+            actionError = "Unable to update checkbox. You may not have permission.";
+        }
+    }
+
+    private async Task AddRecipeAsync()
+    {
+        if (selectedRecipeId <= 0)
+        {
+            return;
+        }
+
+        isAddingRecipe = true;
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            await SignalRClient.AddRecipeAsync(Id, selectedRecipeId);
+            selectedRecipeId = 0;
+        }
+        catch
+        {
+            actionError = "Unable to add recipe. You may not have permission.";
+        }
+        finally
+        {
+            isAddingRecipe = false;
+        }
+    }
+
+    private async Task RemoveRecipeAsync(int recipeId)
+    {
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            await SignalRClient.RemoveRecipeAsync(Id, recipeId);
+        }
+        catch
+        {
+            actionError = "Unable to remove recipe. You may not have permission.";
+        }
+    }
+
+    private async Task HandleIngredientAdded(Guid listId, IngredientItem ingredient)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        if (list.Ingredients.All(i => i.Id != ingredient.Id))
+        {
+            list.Ingredients.Add(ingredient);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleIngredientRemoved(Guid listId, Guid ingredientId)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        var match = list.Ingredients.FirstOrDefault(i => i.Id == ingredientId);
+        if (match is not null)
+        {
+            list.Ingredients.Remove(match);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleIngredientUpdated(Guid listId, IngredientItem ingredient)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        var existing = list.Ingredients.FirstOrDefault(i => i.Id == ingredient.Id);
+        if (existing is null)
+        {
+            list.Ingredients.Add(ingredient);
+        }
+        else
+        {
+            existing.Name = ingredient.Name;
+            existing.Quantity = ingredient.Quantity;
+            existing.Unit = ingredient.Unit;
+            existing.IsChecked = ingredient.IsChecked;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleIngredientCheckUpdated(Guid listId, Guid ingredientId, bool isChecked)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        var existing = list.Ingredients.FirstOrDefault(i => i.Id == ingredientId);
+        if (existing is not null)
+        {
+            existing.IsChecked = isChecked;
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleRecipeAdded(Guid listId, int recipeId)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        if (list.Recipes.Any(r => r.Id == recipeId))
+        {
+            return;
+        }
+
+        var recipe = availableRecipes.FirstOrDefault(r => r.Id == recipeId);
+        if (recipe is not null)
+        {
+            list.Recipes.Add(new IngredientListRecipe
+            {
+                Id = recipe.Id,
+                Name = recipe.Name,
+                Description = recipe.Description
+            });
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    private async Task HandleRecipeRemoved(Guid listId, int recipeId)
+    {
+        if (list is null || listId != Id)
+        {
+            return;
+        }
+
+        var match = list.Recipes.FirstOrDefault(r => r.Id == recipeId);
+        if (match is not null)
+        {
+            list.Recipes.Remove(match);
+        }
+
+        await InvokeAsync(StateHasChanged);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        UnwireSignalREvents();
+
+        try
+        {
+            await SignalRClient.DisconnectAsync(Id);
+        }
+        catch
+        {
+            // Ignore disconnect errors during disposal.
+        }
+    }
+}

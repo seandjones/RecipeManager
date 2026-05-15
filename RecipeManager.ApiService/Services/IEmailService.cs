@@ -1,3 +1,5 @@
+using RecipeManager.ApiService.Data;
+
 namespace RecipeManager.ApiService.Services;
 
 /// <summary>
@@ -14,4 +16,15 @@ public interface IEmailService
     /// <param name="cancellationToken">Cancellation token</param>
     /// <returns>True if email was sent successfully, false otherwise</returns>
     Task<bool> SendLoginCodeAsync(string email, string code, int expiresInMinutes, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Sends an ingredient list share invitation email.
+    /// </summary>
+    /// <param name="email">Recipient email address</param>
+    /// <param name="listName">Name of the shared ingredient list</param>
+    /// <param name="shareUrl">Share URL containing the token</param>
+    /// <param name="accessLevel">Access level granted by the share</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>True if email was sent successfully, false otherwise</returns>
+    Task<bool> SendIngredientListShareInvitationAsync(string email, string listName, string shareUrl, AccessLevel accessLevel, CancellationToken cancellationToken = default);
 }

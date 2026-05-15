@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using RecipeManager.ApiService.Data;
 using RecipeManager.ApiService.Models;
@@ -11,6 +12,7 @@ namespace RecipeManager.ApiService.Services;
 public class AuthService(
     AuthDbContext dbContext,
     IEmailService emailService,
+    IHostEnvironment hostEnvironment,
     ILogger<AuthService> logger) : IAuthService
 {
     private const int CodeExpirationMinutes = 15;
@@ -70,6 +72,18 @@ public class AuthService(
         // Generate 6-digit code
         var code = GenerateCode();
 
+        if (hostEnvironment.IsDevelopment())
+        {
+            Console.WriteLine("========================================");
+            Console.WriteLine("📧 PASSWORDLESS LOGIN CODE (DEV)");
+            Console.WriteLine("========================================");
+            Console.WriteLine($"Email: {email}");
+            Console.WriteLine($"Login Code: {code}");
+            Console.WriteLine("========================================");
+        }
+
+        logger.LogInformation("Generated login code for {Email}", email);
+
         // Create login code
         var loginCode = new LoginCode
         {
@@ -82,9 +96,12 @@ public class AuthService(
         };
 
         dbContext.LoginCodes.Add(loginCode);
+        logger.LogInformation("Saving login code record for {Email}", email);
         await dbContext.SaveChangesAsync(cancellationToken);
+        logger.LogInformation("Saved login code record for {Email}", email);
 
         // Send email
+        logger.LogInformation("Sending login code email for {Email}", email);
         var emailSent = await emailService.SendLoginCodeAsync(email, code, CodeExpirationMinutes, cancellationToken);
 
         if (!emailSent)

@@ -1,3 +1,5 @@
+using RecipeManager.ApiService.Data;
+
 namespace RecipeManager.ApiService.Services;
 
 /// <summary>
@@ -125,5 +127,78 @@ If you did not request this code, please ignore this email.
     public static string GetLoginCodeSubject()
     {
         return "Your RecipeManager Login Code";
+    }
+
+    public static string GetIngredientListShareSubject(string listName)
+    {
+        return $"Ingredient List Shared: {listName}";
+    }
+
+    public static string GetIngredientListSharePlainText(string listName, string shareUrl, AccessLevel accessLevel)
+    {
+        return $@"An ingredient list was shared with you in RecipeManager.
+
+List: {listName}
+Access Level: {accessLevel}
+
+Open the shared list:
+{shareUrl}
+
+This link may expire based on the sharer's settings.
+
+- RecipeManager Team";
+    }
+
+    public static string GetIngredientListShareHtml(string listName, string shareUrl, AccessLevel accessLevel)
+    {
+        return $@"<!DOCTYPE html>
+<html lang=""en"">
+<head>
+    <meta charset=""UTF-8"">
+    <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"">
+    <title>Ingredient List Shared</title>
+    <style>
+        body {{
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }}
+        .container {{
+            background-color: #f9f9f9;
+            border-radius: 8px;
+            padding: 30px;
+            margin: 20px 0;
+        }}
+        .button {{
+            display: inline-block;
+            background-color: #0a7d32;
+            color: #fff !important;
+            text-decoration: none;
+            padding: 12px 18px;
+            border-radius: 6px;
+            font-weight: 600;
+            margin-top: 12px;
+        }}
+        .meta {{
+            color: #555;
+            font-size: 14px;
+            margin-top: 10px;
+        }}
+    </style>
+</head>
+<body>
+    <div class=""container"">
+        <h1>Shared Ingredient List</h1>
+        <p>You were invited to collaborate on an ingredient list in RecipeManager.</p>
+        <p><strong>List:</strong> {listName}<br />
+           <strong>Access:</strong> {accessLevel}</p>
+        <p><a class=""button"" href=""{shareUrl}"">Open Shared List</a></p>
+        <p class=""meta"">If the button does not work, copy this URL into your browser:<br />{shareUrl}</p>
+    </div>
+</body>
+</html>";
     }
 }

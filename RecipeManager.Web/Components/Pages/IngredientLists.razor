@@ -1,0 +1,288 @@
+@page "/ingredient-lists"
+@attribute [Authorize]
+@attribute [StreamRendering(true)]
+@rendermode InteractiveServer
+@inject IngredientListApiClient IngredientListApi
+@inject AuthenticationService AuthService
+
+<PageTitle>Ingredient Lists - RecipeManager</PageTitle>
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1>Ingredient Lists</h1>
+    <button class="btn btn-primary" @onclick="ToggleCreateForm">
+        <span class="bi bi-plus-circle" aria-hidden="true"></span> Create New Ingredient List
+    </button>
+</div>
+
+@if (showCreateForm)
+{
+    <div class="card mb-4">
+        <div class="card-header">
+            <h2 class="h5 mb-0">Create Ingredient List</h2>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-5">
+                    <label class="form-label" for="new-list-name">Name</label>
+                    <input id="new-list-name" class="form-control" @bind="newListName" />
+                </div>
+                <div class="col-md-7">
+                    <label class="form-label" for="new-list-description">Description</label>
+                    <input id="new-list-description" class="form-control" @bind="newListDescription" />
+                </div>
+            </div>
+            <div class="mt-3 d-flex gap-2">
+                <button class="btn btn-primary" @onclick="CreateListAsync" disabled="@isCreating">
+                    @(isCreating ? "Creating..." : "Create")
+                </button>
+                <button class="btn btn-outline-secondary" @onclick="ToggleCreateForm">Cancel</button>
+            </div>
+        </div>
+    </div>
+}
+
+@if (!string.IsNullOrWhiteSpace(errorMessage))
+{
+    <div class="alert alert-danger">@errorMessage</div>
+}
+@if (!string.IsNullOrWhiteSpace(successMessage))
+{
+    <div class="alert alert-success">@successMessage</div>
+}
+
+@if (isLoading)
+{
+    <p class="text-muted"><em>Loading ingredient lists...</em></p>
+}
+else if (!myLists.Any() && !sharedLists.Any())
+{
+    <div class="alert alert-info">
+        <p class="mb-0">No ingredient lists yet. Create your first list to get started.</p>
+    </div>
+}
+else
+{
+    <ul class="nav nav-tabs mb-3" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "mine" ? "active" : null)"
+                    @onclick="ShowMineTab"
+                    type="button">
+                My Lists (@myLists.Count)
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link @(activeTab == "shared" ? "active" : null)"
+                    @onclick="ShowSharedTab"
+                    type="button">
+                Shared With Me (@sharedLists.Count)
+            </button>
+        </li>
+    </ul>
+
+    @if (activeTab == "mine")
+    {
+        @if (!myLists.Any())
+        {
+            <div class="alert alert-light border">You do not own any ingredient lists yet.</div>
+        }
+        else
+        {
+            <div class="row row-cols-1 row-cols-lg-2 g-4">
+                @foreach (var list in myLists.OrderByDescending(l => l.UpdatedAt))
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="/ingredient-lists/@list.Id">@list.Name</a>
+                                </h5>
+                                @if (!string.IsNullOrWhiteSpace(list.Description))
+                                {
+                                    <p class="card-text text-muted small">@list.Description</p>
+                                }
+                                <div class="small text-muted d-flex flex-wrap gap-3 mt-3">
+                                    <span><span class="bi bi-calendar-event"></span> @list.CreatedAt.ToLocalTime().ToString("MMM d, yyyy")</span>
+                                    <span><span class="bi bi-journal-check"></span> Recipes: @list.RecipeCount</span>
+                                    <span><span class="bi bi-people"></span> Shared: @list.SharedCount</span>
+                                </div>
+                            </div>
+                            <div class="card-footer d-flex gap-2">
+                                <a href="/ingredient-lists/@list.Id" class="btn btn-sm btn-outline-secondary">Open</a>
+                                <a href="/ingredient-lists/@list.Id" class="btn btn-sm btn-outline-primary">Edit</a>
+                                <button class="btn btn-sm btn-outline-danger ms-auto" @onclick="() => DeleteListAsync(list.Id)">Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+    else
+    {
+        @if (!sharedLists.Any())
+        {
+            <div class="alert alert-light border">No lists have been shared with you yet.</div>
+        }
+        else
+        {
+            <div class="row row-cols-1 row-cols-lg-2 g-4">
+                @foreach (var list in sharedLists.OrderByDescending(l => l.UpdatedAt))
+                {
+                    <div class="col">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">
+                                    <a href="/ingredient-lists/@list.Id">@list.Name</a>
+                                </h5>
+                                @if (!string.IsNullOrWhiteSpace(list.Description))
+                                {
+                                    <p class="card-text text-muted small">@list.Description</p>
+                                }
+                                <div class="small text-muted d-flex flex-column gap-1 mt-3">
+                                    <span>Shared by: @FormatUserId(list.SharedByUserId ?? list.OwnerId)</span>
+                                    <span>Access level: @list.AccessLevel</span>
+                                </div>
+                            </div>
+                            <div class="card-footer">
+                                <a href="/ingredient-lists/@list.Id" class="btn btn-sm btn-outline-secondary">Open</a>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        }
+    }
+}
+
+@code {
+    private Guid? currentUserId;
+    private bool isLoading = true;
+    private bool isCreating;
+    private bool showCreateForm;
+
+    private string activeTab = "mine";
+    private string newListName = string.Empty;
+    private string? newListDescription;
+
+    private string? errorMessage;
+    private string? successMessage;
+
+    private List<IngredientList> myLists = [];
+    private List<IngredientList> sharedLists = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        currentUserId = AuthService.GetCurrentUserId();
+        await LoadListsAsync();
+    }
+
+    private async Task LoadListsAsync()
+    {
+        isLoading = true;
+        errorMessage = null;
+        successMessage = null;
+
+        try
+        {
+            var lists = await IngredientListApi.GetListsAsync();
+
+            myLists = lists
+                .Where(l => currentUserId.HasValue && l.OwnerId == currentUserId.Value)
+                .ToList();
+
+            sharedLists = lists
+                .Where(l => !currentUserId.HasValue || l.OwnerId != currentUserId.Value)
+                .ToList();
+
+            await EnrichOwnedListMetadataAsync();
+        }
+        catch
+        {
+            errorMessage = "Unable to load ingredient lists right now.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task EnrichOwnedListMetadataAsync()
+    {
+        var enrichmentTasks = myLists.Select(async list =>
+        {
+            var detail = await IngredientListApi.GetListAsync(list.Id);
+            if (detail is not null)
+            {
+                list.RecipeCount = detail.Recipes.Count;
+            }
+
+            var sharing = await IngredientListApi.GetSharingAsync(list.Id);
+            list.SharedCount = sharing.Count(s => s.ShareType == "Email");
+        });
+
+        await Task.WhenAll(enrichmentTasks);
+    }
+
+    private async Task CreateListAsync()
+    {
+        if (string.IsNullOrWhiteSpace(newListName))
+        {
+            errorMessage = "List name is required.";
+            return;
+        }
+
+        isCreating = true;
+        errorMessage = null;
+        successMessage = null;
+
+        var created = await IngredientListApi.CreateListAsync(new IngredientListRequest
+        {
+            Name = newListName,
+            Description = newListDescription
+        });
+
+        isCreating = false;
+
+        if (created is null)
+        {
+            errorMessage = "Unable to create ingredient list. Please try again.";
+            return;
+        }
+
+        showCreateForm = false;
+        newListName = string.Empty;
+        newListDescription = null;
+        successMessage = "Ingredient list created.";
+
+        await LoadListsAsync();
+    }
+
+    private async Task DeleteListAsync(Guid listId)
+    {
+        errorMessage = null;
+        successMessage = null;
+
+        var deleted = await IngredientListApi.DeleteListAsync(listId);
+        if (!deleted)
+        {
+            errorMessage = "Unable to delete ingredient list.";
+            return;
+        }
+
+        successMessage = "Ingredient list deleted.";
+        await LoadListsAsync();
+    }
+
+    private void ToggleCreateForm()
+    {
+        showCreateForm = !showCreateForm;
+        errorMessage = null;
+    }
+
+    private void ShowMineTab() => activeTab = "mine";
+
+    private void ShowSharedTab() => activeTab = "shared";
+
+    private static string FormatUserId(Guid id)
+        => id.ToString("N")[..8];
+}

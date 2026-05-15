@@ -98,6 +98,351 @@ Added PostgreSQL database infrastructure to RecipeManager Aspire application.
 **Implementation Details:**
 - PostgreSQL resource created with `.AddPostgres("postgres").WithDataVolume()`
 - Database 'recipedb' created via `.AddDatabase("recipedb")`
+
+## 2026-05-12 - Design and create database schema for ingredient lists and sharing (Plan: add-shared-ingredient-lists, Task #1)
+
+Created the ingredient list schema and split it into staged EF Core migrations for the base list/items tables, the recipe junction table, and the sharing tables. Added schema tests covering entity surfaces, DbSets, relationships, indexes, and cascade behavior.
+
+**Files Changed:**
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221218_InitialIngredientListsAndItems.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221226_AddRecipeIngredientListJunction.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512221233_AddSharingEntities.cs
+- RecipeManager.Tests/IngredientListSchemaTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+
+**Test Results:**
+- IngredientListSchemaTests: 16/16 passed
+- PostgreSQL migration update: succeeded against running Aspire container
+
+**Gotchas/Notes:**
+- The first migration generation produced empty follow-up migrations, so the staged migration files were rewritten manually to match the plan requirement for separate entity-group migrations.
+- PostgreSQL used the Aspire-generated container password from the running postgres container.
+
+**Next:** Task #2 - Create DbContext configurations and register in ApiService Program.cs
+
+## 2026-05-12 - Create DbContext configurations and register in ApiService Program.cs (Plan: add-shared-ingredient-lists, Task #2)
+
+Wired `IngredientListDbContext` into the API startup, aligned the recipe-junction model to the `Recipe` entity, and verified the ingredient-list schema against a real PostgreSQL database using a self-contained integration test that provisions a temporary container.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512224319_FixRecipeIngredientListRecipeIdType.cs
+- RecipeManager.Tests/IngredientListSchemaTests.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260512230000_InitialIngredientLists.cs
+
+**Test Results:**
+- IngredientListSchemaTests: 17/17 passed
+- PostgreSQL schema verification: passed against a temporary Docker container
+
+**Gotchas/Notes:**
+- The recipe junction needed a follow-up migration to replace the GUID `RecipeId` with the `Recipe` entity's integer key and to add the foreign key cleanly.
+- The PostgreSQL verification test now provisions its own container, which avoids depending on an already-running local database.
+
+**Next:** Task #3 - Set up SignalR hub for real-time ingredient list synchronization
+
+## 2026-05-12 - Set up SignalR hub for real-time ingredient list synchronization (Plan: add-shared-ingredient-lists, Task #3)
+
+Implemented a typed SignalR hub for ingredient-list real-time updates with per-list grouping and access checks based on owner/share relationships.
+
+**Files Changed:**
+- RecipeManager.ApiService/Services/IIngredientListClient.cs
+- RecipeManager.ApiService/Services/IngredientListHub.cs
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.Tests/IngredientListHubTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListHubTests: 4/4 passed
+- Evaluator verdict: OVERALL PASS
+
+**Gotchas/Notes:**
+- Hub authorization currently resolves user identity from claims (`NameIdentifier`, `userId`, `sub`) and validates access via `IngredientLists` ownership or `ListSharings`.
+- Group naming follows `ingredient-list-{listId}` consistently for join/leave and broadcasts.
+
+**Next:** Task #4 - Implement API endpoints for ingredient list CRUD operations
+
+## 2026-05-13 - Implement API endpoints for ingredient list CRUD operations (Plan: add-shared-ingredient-lists, Task #4)
+
+Completed ingredient-list API CRUD endpoints with ownership/shared authorization checks, OpenAPI metadata, and expanded input validation checks that enforce key request constraints with explicit error messages.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListApiIntegrationTests: 7/7 passed
+- New tests added:
+  - CreateList_WithInvalidPayload_ReturnsBadRequestWithMessage
+  - AddIngredient_WithInvalidPayload_ReturnsBadRequestWithMessage
+
+**Gotchas/Notes:**
+- Endpoint validation now explicitly enforces max-length constraints declared by API models for list names/descriptions and ingredient fields.
+- ASPDEPR002 warnings from `.WithOpenApi()` remain expected and were retained to satisfy acceptance criteria.
+- External evaluator verdict: OVERALL PASS
+
+**Next:** Task #5 - Implement ingredient list sharing (email invitation and shareable links)
+
+## 2026-05-13 - Implement ingredient list sharing (email invitation and shareable links) (Plan: add-shared-ingredient-lists, Task #5)
+
+Implemented full ingredient-list sharing APIs for email invites and token links, including owner-only share management, token expiration enforcement, viewer/editor access handling, and invitation email delivery integration.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Models/IngredientListModels.cs
+- RecipeManager.ApiService/Services/IEmailService.cs
+- RecipeManager.ApiService/Services/DevelopmentEmailService.cs
+- RecipeManager.ApiService/Services/SendGridEmailService.cs
+- RecipeManager.ApiService/Services/EmailTemplates.cs
+- RecipeManager.ApiService/Data/IngredientListEntities.cs
+- RecipeManager.ApiService/Data/IngredientListDbContext.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260513212935_AddListShareTokenAccessLevel.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/20260513212935_AddListShareTokenAccessLevel.Designer.cs
+- RecipeManager.ApiService/Migrations/IngredientListDb/IngredientListDbContextModelSnapshot.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- RecipeManager.Tests/AuthFlowIntegrationTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- IngredientListApiIntegrationTests: 10/10 passed
+- New tests added:
+  - ShareViaEmail_CreatesShare_And_SendsInvitation
+  - ShareLink_AllowsTokenAccess_And_RejectsExpiredLink
+  - RevokeShare_RemovesSharedUserAccess
+
+**Gotchas/Notes:**
+- `ListShareToken` now stores `AccessLevel` so link-based access can be enforced as Viewer or Editor.
+- Added migration `AddListShareTokenAccessLevel` to keep PostgreSQL schema aligned with runtime model.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #6 - Create IngredientListApiClient in Web project with service discovery
+
+## 2026-05-13 - Create IngredientListApiClient in Web project with service discovery (Plan: add-shared-ingredient-lists, Task #6)
+
+Implemented a typed `IngredientListApiClient` in the Web project with service discovery and full method coverage for ingredient-list CRUD, ingredient and recipe association operations, sharing operations, and share-token access retrieval.
+
+**Files Changed:**
+- RecipeManager.Web/Services/IngredientListApiClient.cs
+- RecipeManager.Web/Models/IngredientListModels.cs
+- RecipeManager.Web/Program.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Filtered test run: 44/44 passed
+- New tests added in `IngredientListApiClientTests` to verify:
+  - owned/shared list retrieval
+  - detail retrieval with ingredients + recipes
+  - create/update/delete list
+  - add/update/delete ingredient
+  - add/remove recipe association
+  - email share request
+  - share-link generation
+  - shared-token access success + not-found
+
+**Gotchas/Notes:**
+- Added Web-side ingredient-list DTOs aligned to API payloads for clean client deserialization.
+- Registered typed client in `RecipeManager.Web/Program.cs` using `https+http://apiservice` service discovery base address.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #7 - Create SignalR client setup in Web project for real-time updates
+
+## 2026-05-13 - Create SignalR client setup in Web project for real-time updates (Plan: add-shared-ingredient-lists, Task #7)
+
+Implemented a scoped Web SignalR client service for ingredient-list real-time updates, including connection lifecycle methods, group join/leave operations, server callback event handling, outbound hub invoke methods, and explicit exponential-backoff reconnect policy.
+
+**Files Changed:**
+- RecipeManager.Web/Services/IngredientListSignalRClient.cs
+- RecipeManager.Web/Program.cs
+- RecipeManager.Web/RecipeManager.Web.csproj
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Filtered verification run: 34/34 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests`)
+
+**Gotchas/Notes:**
+- Added `Microsoft.AspNetCore.SignalR.Client` package to Web project.
+- Reconnect behavior now uses explicit exponential backoff via custom `IRetryPolicy` with capped delay.
+- Client rejoins the active list group automatically on reconnection.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #8 - Build IngredientList detail/management page
+
+## 2026-05-14 - Build IngredientList detail/management page (Plan: add-shared-ingredient-lists, Task #8)
+
+Implemented the authenticated ingredient-list detail page with streaming rendering, list management actions, recipe association management, owner-only controls, and live SignalR-driven UI synchronization for ingredient and recipe updates.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/IngredientListDetail.razor
+- RecipeManager.Web/Services/IngredientListSignalRClient.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 41/41 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests|IngredientListHubTests`)
+- Added page/component tests for:
+  - initial render and loaded content
+  - realtime ingredient event updates
+  - cross-view checkbox synchronization behavior
+
+**Gotchas/Notes:**
+- Route parameter normalized to `/ingredient-lists/{id:guid}` to align with acceptance wording.
+- Top-of-page list description is now shown with the heading.
+- Mutation controls are gated behind authorization checks in UI (`canManageItems`).
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #9 - Build ingredient lists index/discovery page
+
+## 2026-05-14 - Build ingredient lists index/discovery page (Plan: add-shared-ingredient-lists, Task #9)
+
+Implemented the authenticated ingredient-lists index/discovery page with tabbed owned/shared views, list metadata cards, create/delete flows, and navigation integration to ingredient-list details.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/IngredientLists.razor
+- RecipeManager.Web/Components/Layout/NavMenu.razor
+- RecipeManager.Web/Services/IngredientListApiClient.cs
+- RecipeManager.Web/Models/IngredientListModels.cs
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Models/IngredientListModels.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 43/43 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests|IngredientListHubTests`)
+- Added bUnit page render tests for:
+  - owned/shared tab rendering and metadata display
+  - empty-state rendering when no lists exist
+
+**Gotchas/Notes:**
+- Added `AccessLevel` and `SharedByUserId` to ingredient-list summary payload to support shared list display requirements.
+- Owned-list recipe/share counts are enriched client-side via detail/sharing API calls.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #10 - Implement share modal and link/email invitation UI
+
+---
+
+## 2026-05-14 - Implement share modal and link/email invitation UI (Plan: add-shared-ingredient-lists, Task #10)
+
+Created `ShareIngredientListModal.razor` with two-tab UI (Email Invite / Shareable Link) and integrated it into the detail page, replacing the Task 8 placeholder.
+
+**Files Changed:**
+- RecipeManager.Web/Components/Pages/ShareIngredientListModal.razor (new)
+- RecipeManager.Web/Components/Pages/IngredientListDetail.razor (replaced placeholder)
+- RecipeManager.Tests/IngredientListApiClientTests.cs (6 new modal tests)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- Verification run: 45/45 passed (`IngredientListApiClientTests|IngredientListApiIntegrationTests|AuthApiClientTests`)
+- New modal component tests:
+  - ShareModal_RendersEmailTabByDefault
+  - ShareModal_SwitchesToLinkTab_WhenClicked
+  - ShareModal_SendEmailInvite_ShowsSuccessMessage
+  - ShareModal_SendEmailInvite_ShowsErrorWhenEmailEmpty
+  - ShareModal_GenerateLink_DisplaysLinkAfterGeneration
+  - ShareModal_CloseButtonInvokesCallback
+
+**Gotchas/Notes:**
+- bUnit's `TestContext` provides `JSInterop` automatically; no manual `IJSRuntime` registration needed.
+- Modal uses `OnClose` EventCallback to let parent page hide it.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #11 - Create integration tests for ingredient lists and sharing
+
+---
+
+## 2026-05-14 - Create integration tests for ingredient lists and sharing (Plan: add-shared-ingredient-lists, Task #11)
+
+Extended existing test files with real-time event broadcasting tests and access-control edge cases to satisfy all acceptance criteria.
+
+**Files Changed:**
+- RecipeManager.Tests/IngredientListHubTests.cs (4 new tests)
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs (3 new tests)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Test Results:**
+- `IngredientListApiIntegrationTests`: 13/13 passed
+- `IngredientListHubTests`: 8/8 passed
+- Combined: 21/21 passed
+- New tests added:
+  - UpdateIngredientCheckState_SavesToDatabaseAndBroadcastsEvent
+  - AddIngredient_SavesToDatabaseAndBroadcastsEvent
+  - RemoveIngredient_DeletesFromDatabaseAndBroadcastsEvent
+  - UpdateIngredientCheckState_WithUnauthorizedUser_ThrowsHubException
+  - ViewerSharedUser_CanReadList_ButCannotModifyIngredients
+  - NonOwner_CannotShareList_ViaEmail
+  - GetSharingInfo_RequiresOwner_RejectNonOwner
+
+**Gotchas/Notes:**
+- Viewer access rejection (`Forbidden`) is enforced by `HasIngredientListWriteAccessAsync` in Program.cs.
+- Hub event broadcasting verified via Moq `Verify` on the group client mock.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Task #12 - Update Copilot instructions with ingredient list architecture and patterns
+
+---
+
+## 2026-05-14 - Update Copilot instructions with ingredient list architecture and patterns (Plan: add-shared-ingredient-lists, Task #12)
+
+Added comprehensive ingredient list documentation to .github/copilot-instructions.md covering all architecture and integration patterns.
+
+**Files Changed:**
+- .github/copilot-instructions.md (new "Ingredient Lists & Real-Time Synchronization" section)
+- .harness/plans/add-shared-ingredient-lists.json
+- .harness/progress.md
+
+**Content Added:**
+- Data Model section (core entities, access levels)
+- SignalR Integration Pattern (hub interface, registration, authorization)
+- Real-Time Synchronization Pattern (component lifecycle, event handlers, cleanup)
+- Sharing & Authorization Pattern (email flow, link flow, access control)
+- API Client Pattern for Real-Time Features (IngredientListApiClient methods, registration)
+- Testing Examples (integration tests, hub tests)
+- Updated Project-Specific Details (SignalR endpoint, IngredientListDbContext databases)
+
+**Evaluator Verdict:** OVERALL PASS — All 6 acceptance criteria met, plus bonus testing examples and connection management details.
+
+---
+
+## Plan Summary: "Add Shared Ingredient Lists with Real-Time Synchronization"
+
+✅ **All 12 tasks completed successfully**
+
+### Task Breakdown:
+1. ✅ Task 1: Database schema design (3 migrations)
+2. ✅ Task 2: DbContext configuration
+3. ✅ Task 3: SignalR hub setup
+4. ✅ Task 4: API CRUD endpoints
+5. ✅ Task 5: Sharing (email + links)
+6. ✅ Task 6: IngredientListApiClient
+7. ✅ Task 7: IngredientListSignalRClient
+8. ✅ Task 8: IngredientListDetail.razor page
+9. ✅ Task 9: IngredientLists.razor index page
+10. ✅ Task 10: ShareIngredientListModal.razor component
+11. ✅ Task 11: Integration tests (21 tests, all passing)
+12. ✅ Task 12: Copilot documentation
+
+### Key Metrics:
+- **Test Coverage**: 56 tests passing (API integration, hub unit, component unit)
+- **Real-Time**: SignalR with exponential backoff reconnection, group-based broadcasting
+- **Access Control**: Owner/Editor/Viewer levels with write-gate enforcement
+- **Sharing**: Email invites + shareable tokens with expiration
+- **UI**: Tabbed share modal, real-time ingredient sync, index/detail pages
+
+**Status**: Plan complete - Ready for user acceptance testing and deployment
 - ApiService configured to `.WithReference(postgres).WaitFor(postgres)`
 - Updated Aspire SDK from 13.1.0 to 13.2.2 to resolve version compatibility
 
