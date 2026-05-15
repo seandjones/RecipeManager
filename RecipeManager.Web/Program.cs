@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Components.Authorization;
-using RecipeManager.Web;
+using Polly;
 using RecipeManager.Web.Components;
 using RecipeManager.Web.Services;
 
@@ -42,6 +42,10 @@ builder.Services.AddRazorComponents()
 builder.Services.AddHttpClient<AuthApiClient>(client =>
     {
         client.BaseAddress = new("https+http://apiservice");
+    })
+    .AddStandardResilienceHandler(options =>
+    {
+        options.Retry.ShouldHandle = _ => PredicateResult.False();
     });
 
 // Register RecipeApiClient
@@ -80,6 +84,34 @@ app.MapStaticAssets();
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+
+app.MapPost("/auth/complete-login", async (
+    HttpRequest request,
+    AuthApiClient authApiClient,
+    AuthenticationService authService) =>
+{
+    var form = await request.ReadFormAsync();
+    var email = form["email"].ToString();
+    var code = form["code"].ToString();
+
+    if (string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(code) || code.Length != 6)
+    {
+        return Results.Redirect("/login");
+    }
+
+    var response = await authApiClient.VerifyCodeAsync(email, code);
+    if (!response.Success || !response.UserId.HasValue || string.IsNullOrWhiteSpace(response.Email))
+    {
+        var encodedEmail = Uri.EscapeDataString(email);
+        var error = Uri.EscapeDataString(response.Message ?? "Invalid verification code. Please try again.");
+        return Results.Redirect($"/verify-code?email={encodedEmail}&error={error}");
+    }
+
+    await authService.SignInAsync(response.UserId.Value, response.Email);
+    return Results.Redirect("/recipes");
+})
+.DisableAntiforgery()
+.AllowAnonymous();
 
 app.MapDefaultEndpoints();
 

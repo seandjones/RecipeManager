@@ -50,6 +50,20 @@ RecipeManager/
    - **Web Frontend**: Navigate from dashboard or check console output for URL
    - **API Service**: Available via service discovery at `https+http://apiservice`
 
+### Local Run Notes
+
+When starting the app from the command line, use the exact dashboard login URL that `dotnet run --project RecipeManager.AppHost` prints in the terminal. Aspire generates a fresh one-time token on each launch, so old tabs, bookmarks, or copied dashboard root URLs will fail with `Invalid token`.
+
+Recommended local workflow:
+
+1. Stop any running `dotnet` or Aspire processes.
+2. Run `dotnet run --project RecipeManager.AppHost`.
+3. Copy the `Login to the dashboard at .../login?t=...` URL from the terminal and open that exact link once.
+4. From the dashboard, open the `webfrontend` resource and sign in to the app.
+5. Use `/ingredient-lists` to test ingredient list creation, sharing, and real-time updates.
+
+If the dashboard still shows `Invalid token`, close all existing dashboard tabs and start a fresh run. If needed, clear any cached site data for `recipemanager.dev.localhost` in your browser and retry with the new login URL.
+
 ### Running Tests
 
 ```bash

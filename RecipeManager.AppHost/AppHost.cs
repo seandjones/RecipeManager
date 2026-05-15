@@ -10,6 +10,7 @@ var cache = builder.AddRedis("cache");
 var apiService = builder.AddProject<Projects.RecipeManager_ApiService>("apiservice")
     .WithReference(postgres)
     .WaitFor(postgres)
+    .WithEnvironment("Authentication__UseConsoleEmailDelivery", "true")
     .WithHttpHealthCheck("/health");
 
 builder.AddProject<Projects.RecipeManager_Web>("webfrontend")

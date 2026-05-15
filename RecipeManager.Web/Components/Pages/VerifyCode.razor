@@ -1,7 +1,6 @@
 @page "/verify-code"
 @attribute [AllowAnonymous]
 @inject AuthApiClient AuthApiClient
-@inject AuthenticationService AuthService
 @inject NavigationManager Navigation
 @inject IJSRuntime JS
 @rendermode InteractiveServer
@@ -28,8 +27,8 @@
                         maxlength="1"
                         class="code-digit @(hasError ? "is-invalid" : "")"
                         id="@($"digit-{index}")"
-                        @bind="codeDigits[index]"
-                        @bind:event="oninput"
+                        value="@codeDigits[index]"
+                        @oninput="(e => HandleDigitInput(index, e.Value?.ToString()))"
                         disabled="@isSubmitting"
                         aria-label="@($"Digit {index + 1}")"
                         autocomplete="off" />
@@ -112,6 +111,9 @@
     [SupplyParameterFromQuery]
     public string? Email { get; set; }
 
+    [SupplyParameterFromQuery]
+    public string? Error { get; set; }
+
     private string[] codeDigits = new string[6];
     private bool isSubmitting = false;
     private bool isResending = false;
@@ -124,6 +126,20 @@
     private bool IsCodeComplete => codeDigits.All(d => !string.IsNullOrEmpty(d) && d.Length == 1);
     private string CompleteCode => string.Join("", codeDigits);
 
+    private void HandleDigitInput(int index, string? rawValue)
+    {
+        if (index < 0 || index >= codeDigits.Length)
+        {
+            return;
+        }
+
+        var digit = string.IsNullOrWhiteSpace(rawValue)
+            ? string.Empty
+            : new string(rawValue.Where(char.IsDigit).Take(1).ToArray());
+
+        codeDigits[index] = digit;
+    }
+
     protected override async Task OnInitializedAsync()
     {
         if (string.IsNullOrWhiteSpace(Email))
@@ -135,6 +151,12 @@
         }
 
         displayEmail = Email;
+
+        if (!string.IsNullOrWhiteSpace(Error))
+        {
+            hasError = true;
+            errorMessage = Error;
+        }
     }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
@@ -167,41 +189,12 @@
 
         try
         {
-            var response = await AuthApiClient.VerifyCodeAsync(Email, CompleteCode);
-
-            if (response.Success && response.UserId.HasValue && !string.IsNullOrEmpty(response.Email))
-            {
-                // Sign in the user
-                await AuthService.SignInAsync(response.UserId.Value, response.Email);
-
-                // Redirect to home page
-                Navigation.NavigateTo("/", forceLoad: true);
-            }
-            else
-            {
-                // Show error message
-                hasError = true;
-                errorMessage = response.Message ?? "Invalid verification code. Please try again.";
-                
-                // Clear the code inputs
-                Array.Clear(codeDigits, 0, codeDigits.Length);
-                StateHasChanged();
-
-                // Focus first input after error
-                try
-                {
-                    await JS.InvokeVoidAsync("focusFirstDigit");
-                }
-                catch { }
-            }
+            await JS.InvokeVoidAsync("submitCompleteLoginForm", Email, CompleteCode);
         }
         catch (Exception ex)
         {
             hasError = true;
             errorMessage = $"An unexpected error occurred: {ex.Message}";
-        }
-        finally
-        {
             isSubmitting = false;
             StateHasChanged();
         }

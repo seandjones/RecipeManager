@@ -49,9 +49,6 @@ class CodeInputHandler {
 
         input.value = value;
 
-        // Update Blazor binding
-        input.dispatchEvent(new Event('change', { bubbles: true }));
-
         // Auto-tab to next input if digit entered
         if (value.length === 1 && index < this.state.inputs.length - 1) {
             this.focusInput(index + 1);
@@ -71,7 +68,7 @@ class CodeInputHandler {
             event.preventDefault();
             this.focusInput(index - 1);
             this.state.inputs[index - 1].value = '';
-            this.state.inputs[index - 1].dispatchEvent(new Event('change', { bubbles: true }));
+            this.state.inputs[index - 1].dispatchEvent(new Event('input', { bubbles: true }));
         }
 
         // Arrow keys navigation
@@ -121,7 +118,7 @@ class CodeInputHandler {
         digits.forEach((digit) => {
             if (currentIndex < this.state.inputs.length) {
                 this.state.inputs[currentIndex].value = digit;
-                this.state.inputs[currentIndex].dispatchEvent(new Event('change', { bubbles: true }));
+                this.state.inputs[currentIndex].dispatchEvent(new Event('input', { bubbles: true }));
                 currentIndex++;
             }
         });
@@ -184,7 +181,7 @@ class CodeInputHandler {
     clearAll() {
         this.state.inputs.forEach(input => {
             input.value = '';
-            input.dispatchEvent(new Event('change', { bubbles: true }));
+            input.dispatchEvent(new Event('input', { bubbles: true }));
         });
         this.focusInput(0);
     }
@@ -210,6 +207,28 @@ window.focusFirstDigit = () => {
 
 window.clearCodeInputs = () => {
     codeInputHandler?.clearAll();
+};
+
+window.submitCompleteLoginForm = (email, code) => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = '/auth/complete-login';
+    form.style.display = 'none';
+
+    const emailInput = document.createElement('input');
+    emailInput.type = 'hidden';
+    emailInput.name = 'email';
+    emailInput.value = email;
+    form.appendChild(emailInput);
+
+    const codeInput = document.createElement('input');
+    codeInput.type = 'hidden';
+    codeInput.name = 'code';
+    codeInput.value = code;
+    form.appendChild(codeInput);
+
+    document.body.appendChild(form);
+    form.submit();
 };
 
 // Initialize when module loads or DOM is ready

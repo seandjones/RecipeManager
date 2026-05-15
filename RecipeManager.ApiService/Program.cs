@@ -27,8 +27,11 @@ if (!builder.Services.Any(sd => sd.ServiceType == typeof(DbContextOptions<Ingred
 // Configure email service
 builder.Services.Configure<SendGridOptions>(builder.Configuration.GetSection("SendGrid"));
 
-// Register email service based on environment
-if (builder.Environment.IsDevelopment())
+// Register email service based on explicit local toggle, then environment.
+// This keeps local Aspire runs deterministic even if environment detection changes.
+var useConsoleEmailDelivery = builder.Configuration.GetValue<bool>("Authentication:UseConsoleEmailDelivery");
+
+if (useConsoleEmailDelivery || builder.Environment.IsDevelopment())
 {
     builder.Services.AddSingleton<IEmailService, DevelopmentEmailService>();
 }
@@ -88,13 +91,21 @@ authGroup.MapPost("/request-code", async (
     // Validate email
     if (string.IsNullOrWhiteSpace(request.Email))
     {
-        return Results.BadRequest(new { error = "Email is required." });
+        return Results.BadRequest(new RequestLoginCodeResponse
+        {
+            Success = false,
+            Message = "Email is required."
+        });
     }
 
     var emailValidator = new System.ComponentModel.DataAnnotations.EmailAddressAttribute();
     if (!emailValidator.IsValid(request.Email))
     {
-        return Results.BadRequest(new { error = "Invalid email format." });
+        return Results.BadRequest(new RequestLoginCodeResponse
+        {
+            Success = false,
+            Message = "Invalid email format."
+        });
     }
 
     var result = await authService.RequestLoginCodeAsync(request.Email, cancellationToken);
@@ -105,15 +116,13 @@ authGroup.MapPost("/request-code", async (
         {
             // Rate limit exceeded
             httpContext.Response.Headers["Retry-After"] = result.RetryAfterSeconds.Value.ToString();
-            return Results.Json(
-                new { error = result.Message, retryAfter = result.RetryAfterSeconds },
-                statusCode: 429);
+            return Results.Json(result, statusCode: 429);
         }
 
-        return Results.BadRequest(new { error = result.Message });
+        return Results.BadRequest(result);
     }
 
-    return Results.Ok(new { message = result.Message });
+    return Results.Ok(result);
 })
 .WithName("RequestLoginCode")
 .WithSummary("Request a login code")
@@ -130,12 +139,20 @@ authGroup.MapPost("/verify-code", async (
     // Validate inputs
     if (string.IsNullOrWhiteSpace(request.Email))
     {
-        return Results.BadRequest(new { error = "Email is required." });
+        return Results.BadRequest(new VerifyLoginCodeResponse
+        {
+            Success = false,
+            Message = "Email is required."
+        });
     }
 
     if (string.IsNullOrWhiteSpace(request.Code) || request.Code.Length != 6 || !request.Code.All(char.IsDigit))
     {
-        return Results.BadRequest(new { error = "Invalid code format. Code must be 6 digits." });
+        return Results.BadRequest(new VerifyLoginCodeResponse
+        {
+            Success = false,
+            Message = "Invalid code format. Code must be 6 digits."
+        });
     }
 
     var result = await authService.VerifyLoginCodeAsync(request.Email, request.Code, cancellationToken);
@@ -145,12 +162,7 @@ authGroup.MapPost("/verify-code", async (
         return Results.Unauthorized();
     }
 
-    return Results.Ok(new
-    {
-        message = result.Message,
-        userId = result.UserId,
-        email = result.Email
-    });
+    return Results.Ok(result);
 })
 .WithName("VerifyLoginCode")
 .WithSummary("Verify a login code")
