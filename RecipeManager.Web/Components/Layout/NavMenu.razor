@@ -7,9 +7,14 @@
     </div>
 </div>
 
-<input type="checkbox" title="Navigation menu" class="navbar-toggler" />
+<details class="mobile-nav-shell">
+    <summary class="navbar-toggler"
+             title="Navigation menu"
+             aria-label="Toggle navigation menu">
+        <span class="sr-only">Toggle navigation menu</span>
+    </summary>
 
-<div class="nav-scrollable" onclick="document.querySelector('.navbar-toggler').click()">
+    <div id="main-nav-menu" class="nav-scrollable">
     <nav class="nav flex-column">
         <div class="nav-item px-3">
             <NavLink class="nav-link" href="" Match="NavLinkMatch.All">
@@ -66,7 +71,8 @@
             </NotAuthorized>
         </AuthorizeView>
     </nav>
-</div>
+    </div>
+</details>
 
 @code {
     private async Task HandleLogout()

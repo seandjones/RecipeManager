@@ -3,6 +3,49 @@
 
 <PageTitle>Home</PageTitle>
 
-<h1>Hello, world!</h1>
+<main class="home-shell" aria-labelledby="home-title">
+    <section class="hero" aria-label="Planning overview">
+        <p class="hero-kicker">This Week's Kitchen Plan</p>
+        <h1 id="home-title">Choose your next planning move</h1>
+        <p class="hero-copy">
+            Keep recipes and ingredient planning connected so your week stays clear, organized, and easy to share with family.
+        </p>
+    </section>
 
-Welcome to your new app.
+    <section class="action-layout" aria-label="Primary actions">
+        <article class="action-primary" aria-labelledby="recipes-action-title">
+            <div class="action-icon" aria-hidden="true">
+                <span class="bi bi-journal-richtext"></span>
+            </div>
+            <div class="action-content">
+                <h2 id="recipes-action-title">Build or update recipes</h2>
+                <p>
+                    Add dishes, refine instructions, and keep your recipe library ready for weekly planning.
+                </p>
+                <NavLink class="action-button" href="recipes">Open Recipes</NavLink>
+            </div>
+        </article>
+
+        <article class="action-secondary" aria-labelledby="lists-action-title">
+            <h2 id="lists-action-title">Turn recipes into a working list</h2>
+            <ul class="checklist" aria-label="Ingredient list outcomes">
+                <li>
+                    <span class="bi bi-check2-circle" aria-hidden="true"></span>
+                    Organize ingredients by plan or trip
+                </li>
+                <li>
+                    <span class="bi bi-check2-circle" aria-hidden="true"></span>
+                    Track progress in real time
+                </li>
+                <li>
+                    <span class="bi bi-check2-circle" aria-hidden="true"></span>
+                    Keep everyone aligned on what is done
+                </li>
+            </ul>
+            <NavLink class="action-link" href="ingredient-lists">
+                Open Ingredient Lists
+                <span class="bi bi-arrow-right" aria-hidden="true"></span>
+            </NavLink>
+        </article>
+    </section>
+</main>
