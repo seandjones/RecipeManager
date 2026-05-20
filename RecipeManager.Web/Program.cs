@@ -52,13 +52,17 @@ builder.Services.AddHttpClient<AuthApiClient>(client =>
 builder.Services.AddHttpClient<RecipeApiClient>(client =>
     {
         client.BaseAddress = new("https+http://apiservice");
-    });
+    })
+    .AddHttpMessageHandler<CurrentUserHeaderHandler>();
 
 // Register IngredientListApiClient
 builder.Services.AddHttpClient<IngredientListApiClient>(client =>
     {
         client.BaseAddress = new("https+http://apiservice");
-    });
+    })
+    .AddHttpMessageHandler<CurrentUserHeaderHandler>();
+
+builder.Services.AddScoped<CurrentUserHeaderHandler>();
 
 builder.Services.AddScoped<IngredientListSignalRClient>();
 
