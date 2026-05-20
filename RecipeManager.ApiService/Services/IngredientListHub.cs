@@ -170,15 +170,21 @@ public class IngredientListHub(IngredientListDbContext dbContext) : Hub<IIngredi
     private Guid? ResolveUserId()
     {
         var user = Context.User;
-        if (user is null)
+        var idClaim = user?.FindFirstValue(ClaimTypes.NameIdentifier)
+            ?? user?.FindFirstValue("userId")
+            ?? user?.FindFirstValue("sub");
+
+        if (Guid.TryParse(idClaim, out var userId))
         {
-            return null;
+            return userId;
         }
 
-        var idClaim = user.FindFirstValue(ClaimTypes.NameIdentifier)
-            ?? user.FindFirstValue("userId")
-            ?? user.FindFirstValue("sub");
+        if (Context.GetHttpContext()?.Request.Headers.TryGetValue("X-User-Id", out var headerValues) == true
+            && Guid.TryParse(headerValues.FirstOrDefault(), out var headerUserId))
+        {
+            return headerUserId;
+        }
 
-        return Guid.TryParse(idClaim, out var userId) ? userId : null;
+        return null;
     }
 }

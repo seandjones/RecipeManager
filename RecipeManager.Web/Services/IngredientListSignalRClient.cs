@@ -1,14 +1,21 @@
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.SignalR.Client;
+using Microsoft.Extensions.Configuration;
 using RecipeManager.Web.Models;
+using System.Security.Claims;
 
 namespace RecipeManager.Web.Services;
 
-public class IngredientListSignalRClient(NavigationManager navigationManager) : IAsyncDisposable
+public class IngredientListSignalRClient(
+    NavigationManager navigationManager,
+    AuthenticationStateProvider authenticationStateProvider,
+    IConfiguration configuration) : IAsyncDisposable
 {
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
     private HubConnection? _connection;
     private Guid? _currentListId;
+    private Guid? _currentUserId;
 
     public event Func<Guid, IngredientItem, Task>? OnIngredientAdded;
     public event Func<Guid, Guid, Task>? OnIngredientRemoved;
@@ -29,6 +36,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
 
             await DisconnectInternalAsync();
 
+            _currentUserId = await ResolveCurrentUserIdAsync();
             _connection = CreateConnection();
             _currentListId = listId;
 
@@ -117,8 +125,16 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
 
     private HubConnection CreateConnection()
     {
+        var hubUri = ResolveHubUri();
+
         var connection = new HubConnectionBuilder()
-            .WithUrl(navigationManager.ToAbsoluteUri("/hubs/ingredient-list"))
+            .WithUrl(hubUri, options =>
+            {
+                if (_currentUserId.HasValue)
+                {
+                    options.Headers["X-User-Id"] = _currentUserId.Value.ToString();
+                }
+            })
             .WithAutomaticReconnect(new ExponentialBackoffRetryPolicy())
             .Build();
 
@@ -181,6 +197,68 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         return connection;
     }
 
+    private Uri ResolveHubUri()
+    {
+        var baseAddress = ResolveApiServiceBaseUri() ?? navigationManager.ToAbsoluteUri("/");
+        return new Uri(baseAddress, "/hubs/ingredient-list");
+    }
+
+    private Uri? ResolveApiServiceBaseUri()
+    {
+        var apiServiceSection = configuration.GetSection("Services:apiservice");
+        if (!apiServiceSection.Exists())
+        {
+            return null;
+        }
+
+        var httpsEndpoint = GetFirstValidEndpoint(apiServiceSection.GetSection("https"));
+        if (httpsEndpoint is not null)
+        {
+            return httpsEndpoint;
+        }
+
+        var httpEndpoint = GetFirstValidEndpoint(apiServiceSection.GetSection("http"));
+        if (httpEndpoint is not null)
+        {
+            return httpEndpoint;
+        }
+
+        return null;
+    }
+
+    private static Uri? GetFirstValidEndpoint(IConfigurationSection endpointSection)
+    {
+        if (!endpointSection.Exists())
+        {
+            return null;
+        }
+
+        if (Uri.TryCreate(endpointSection.Value, UriKind.Absolute, out var directEndpoint))
+        {
+            return directEndpoint;
+        }
+
+        foreach (var endpoint in endpointSection.GetChildren())
+        {
+            if (Uri.TryCreate(endpoint.Value, UriKind.Absolute, out var parsedEndpoint))
+            {
+                return parsedEndpoint;
+            }
+        }
+
+        return null;
+    }
+
+    private async Task<Guid?> ResolveCurrentUserIdAsync()
+    {
+        var authState = await authenticationStateProvider.GetAuthenticationStateAsync();
+        var claimValue = authState.User.FindFirst(ClaimTypes.NameIdentifier)?.Value
+            ?? authState.User.FindFirst("userId")?.Value
+            ?? authState.User.FindFirst("sub")?.Value;
+
+        return Guid.TryParse(claimValue, out var userId) ? userId : null;
+    }
+
     private async Task DisconnectInternalAsync()
     {
         if (_connection is null)
@@ -201,6 +279,7 @@ public class IngredientListSignalRClient(NavigationManager navigationManager) : 
         await _connection.DisposeAsync();
         _connection = null;
         _currentListId = null;
+        _currentUserId = null;
     }
 
     public async ValueTask DisposeAsync()

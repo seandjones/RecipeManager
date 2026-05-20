@@ -419,6 +419,32 @@ Added comprehensive ingredient list documentation to .github/copilot-instruction
 
 ## Plan Summary: "Add Shared Ingredient Lists with Real-Time Synchronization"
 
+## 2026-05-20 - Fix ingredient list realtime hub routing (Plan: fix-ingredientlist-realtime-hub-routing, Task #1)
+
+Implemented a full cross-service realtime fix so the web SignalR client connects to the ApiService hub endpoint and authenticates hub operations using forwarded user identity.
+
+**Files Changed:**
+- RecipeManager.Web/Services/IngredientListSignalRClient.cs
+- RecipeManager.ApiService/Services/IngredientListHub.cs
+- RecipeManager.Tests/IngredientListHubTests.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/fix-ingredientlist-realtime-hub-routing.json
+- .harness/progress.md
+
+**Test Results:**
+- Build verification (plan command): passed
+  - `dotnet build RecipeManager.ApiService/RecipeManager.ApiService.csproj`
+  - `dotnet build RecipeManager.Web/RecipeManager.Web.csproj`
+- `dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj` still fails due pre-existing AuthService logger-constructor errors unrelated to this task.
+
+**Gotchas/Notes:**
+- SignalR connection now resolves `Services:apiservice` endpoints (HTTPS first, then HTTP) and builds `/hubs/ingredient-list` URI from that base.
+- Hub user resolution now supports claims-first with `X-User-Id` header fallback for server-to-server SignalR calls.
+- Added explicit hub test coverage for header-based identity path (`JoinListGroup_WithXUserIdHeader_AddsConnectionToGroup`).
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Monitor realtime behavior across browser sessions and add end-to-end SignalR integration coverage once test-project baseline errors are resolved.
+
 ✅ **All 12 tasks completed successfully**
 
 ### Task Breakdown:

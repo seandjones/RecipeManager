@@ -3,7 +3,9 @@ using Moq;
 using Moq.Protected;
 using Bunit;
 using Microsoft.AspNetCore.Components;
+using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
 using RecipeManager.Web.Models;
 using RecipeManager.Web.Components.Pages;
 using Microsoft.JSInterop;
@@ -851,7 +853,10 @@ public class IngredientListApiClientTests
     }
 
     private sealed class FakeIngredientListSignalRClient(NavigationManager navigationManager)
-        : IngredientListSignalRClient(navigationManager)
+        : IngredientListSignalRClient(
+            navigationManager,
+            new StaticAuthenticationStateProvider(),
+            new ConfigurationBuilder().AddInMemoryCollection().Build())
     {
         public override Task InitializeAsync(Guid listId, CancellationToken cancellationToken = default)
             => Task.CompletedTask;
@@ -883,5 +888,11 @@ public class IngredientListApiClientTests
                 await callback(listId, ingredientId, isChecked);
             }
         }
+    }
+
+    private sealed class StaticAuthenticationStateProvider : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+            => Task.FromResult(new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity())));
     }
 }

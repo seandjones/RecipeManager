@@ -246,7 +246,6 @@ else
     private bool isAddingIngredient;
     private bool isAddingRecipe;
     private bool showShareModal;
-    private bool isRealtimeConnected;
 
     private string? loadError;
     private string? actionError;
@@ -271,18 +270,8 @@ else
 
         if (list is not null)
         {
-            try
-            {
-                WireSignalREvents();
-                await SignalRClient.InitializeAsync(Id);
-                isRealtimeConnected = true;
-            }
-            catch
-            {
-                isRealtimeConnected = false;
-                UnwireSignalREvents();
-                actionError = "Live sync is temporarily unavailable. You can still view and edit this list.";
-            }
+            WireSignalREvents();
+            await SignalRClient.InitializeAsync(Id);
         }
     }
 
@@ -617,11 +606,6 @@ else
     public async ValueTask DisposeAsync()
     {
         UnwireSignalREvents();
-
-        if (!isRealtimeConnected)
-        {
-            return;
-        }
 
         try
         {

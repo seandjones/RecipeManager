@@ -1,0 +1,28 @@
+{
+  "slug": "fix-ingredientlist-realtime-hub-routing",
+  "title": "Fix Ingredient List Realtime Hub Routing",
+  "category": "bug",
+  "created_at": "2026-05-20T00:00:00Z",
+  "status": "complete",
+  "description": "Resolve cross-service SignalR connectivity so ingredient list detail pages can open and edit with realtime synchronization in Aspire by routing hub connections to apiservice and propagating user identity for hub authorization.",
+  "verification_command": "dotnet build RecipeManager.ApiService/RecipeManager.ApiService.csproj && dotnet build RecipeManager.Web/RecipeManager.Web.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Route web SignalR client to apiservice hub and authorize via X-User-Id",
+      "status": "complete",
+      "acceptance_criteria": [
+        "IngredientListSignalRClient resolves an apiservice base URL from service discovery configuration and connects to /hubs/ingredient-list on that service",
+        "IngredientListSignalRClient sends the signed-in user id as X-User-Id during hub connection setup",
+        "IngredientListHub resolves user id from claims or X-User-Id header for server-to-server hub calls",
+        "IngredientListHubTests include coverage for header-based user-id resolution",
+        "ApiService and Web projects build successfully after the change"
+      ],
+      "notes": "SignalR client now resolves the apiservice base URL from configuration, connects to /hubs/ingredient-list on apiservice, and forwards X-User-Id from auth claims. IngredientListHub now resolves identity from claims or X-User-Id header. Added hub test coverage for header-based identity fallback. Evaluator verdict: PASS."
+    }
+  ],
+  "dependencies": [
+    "Requires AppHost service reference from webfrontend to apiservice (already configured)",
+    "Requires existing ingredient list hub endpoint mapping in ApiService"
+  ]
+}

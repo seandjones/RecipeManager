@@ -1,4 +1,7 @@
 using System.Security.Claims;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http.Connections.Features;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Moq;
@@ -131,6 +134,37 @@ public class IngredientListHubTests
         await hub.JoinListGroup(listId);
 
         groups.Verify(g => g.AddToGroupAsync("conn-shared", $"ingredient-list-{listId}", It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task JoinListGroup_WithXUserIdHeader_AddsConnectionToGroup()
+    {
+        await using var db = CreateContext();
+        var ownerId = Guid.NewGuid();
+        var listId = Guid.NewGuid();
+
+        db.IngredientLists.Add(new IngredientList
+        {
+            Id = listId,
+            Name = "Header Auth List",
+            OwnerId = ownerId,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        });
+        await db.SaveChangesAsync();
+
+        var groups = new Mock<IGroupManager>();
+
+        var hub = new IngredientListHub(db)
+        {
+            Context = CreateHubContext("conn-header", null, ownerId),
+            Groups = groups.Object,
+            Clients = new Mock<IHubCallerClients<IIngredientListClient>>().Object
+        };
+
+        await hub.JoinListGroup(listId);
+
+        groups.Verify(g => g.AddToGroupAsync("conn-header", $"ingredient-list-{listId}", It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [TestMethod]
@@ -307,7 +341,7 @@ public class IngredientListHubTests
             hub.UpdateIngredientCheckState(listId, ingredientId, isChecked: true));
     }
 
-    private static HubCallerContext CreateHubContext(string connectionId, Guid? userId)
+    private static HubCallerContext CreateHubContext(string connectionId, Guid? userId, Guid? headerUserId = null)
     {
         var mock = new Mock<HubCallerContext>();
         mock.SetupGet(c => c.ConnectionId).Returns(connectionId);
@@ -326,6 +360,21 @@ public class IngredientListHubTests
         }
 
         mock.SetupGet(c => c.User).Returns(principal);
+
+        var features = new FeatureCollection();
+        if (headerUserId.HasValue)
+        {
+            var httpContext = new DefaultHttpContext();
+            httpContext.Request.Headers["X-User-Id"] = headerUserId.Value.ToString();
+            features.Set<Microsoft.AspNetCore.Http.Connections.Features.IHttpContextFeature>(new TestHttpContextFeature { HttpContext = httpContext });
+        }
+
+        mock.SetupGet(c => c.Features).Returns(features);
         return mock.Object;
+    }
+
+    private sealed class TestHttpContextFeature : Microsoft.AspNetCore.Http.Connections.Features.IHttpContextFeature
+    {
+        public HttpContext? HttpContext { get; set; } = new DefaultHttpContext();
     }
 }
