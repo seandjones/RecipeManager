@@ -25,8 +25,9 @@
             <ValidationSummary class="text-danger mb-3" />
 
             <div class="mb-3">
-                <label class="form-label">Name <span class="text-danger">*</span></label>
-                <InputText class="form-control" @bind-Value="model.Name" placeholder="e.g. Pasta Carbonara" />
+                <label class="form-label">Recipe Name or Link <span class="text-danger">*</span></label>
+                <InputText class="form-control" @bind-Value="model.Name" placeholder="e.g. Pasta Carbonara or https://example.com/recipe" />
+                <div class="form-text">Use a recipe title or paste the source URL.</div>
                 <ValidationMessage For="() => model.Name" class="text-danger small" />
             </div>
 
@@ -63,9 +64,9 @@
             </div>
 
             <div class="mb-4">
-                <label class="form-label">Instructions <span class="text-danger">*</span></label>
+                <label class="form-label">Instructions</label>
                 <InputTextArea class="form-control" @bind-Value="model.Instructions" rows="7"
-                               placeholder="Write each step on a new line&#10;e.g.&#10;1. Preheat oven to 350°F&#10;2. Mix dry ingredients" />
+                               placeholder="Optional: write each step on a new line&#10;e.g.&#10;1. Preheat oven to 350°F&#10;2. Mix dry ingredients" />
                 <ValidationMessage For="() => model.Instructions" class="text-danger small" />
             </div>
 

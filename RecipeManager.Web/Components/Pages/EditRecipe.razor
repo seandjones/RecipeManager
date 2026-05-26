@@ -38,8 +38,9 @@ else
                 <ValidationSummary class="text-danger mb-3" />
 
                 <div class="mb-3">
-                    <label class="form-label">Name <span class="text-danger">*</span></label>
+                    <label class="form-label">Recipe Name or Link <span class="text-danger">*</span></label>
                     <InputText class="form-control" @bind-Value="model.Name" />
+                    <div class="form-text">Use a recipe title or paste the source URL.</div>
                     <ValidationMessage For="() => model.Name" class="text-danger small" />
                 </div>
 
@@ -74,7 +75,7 @@ else
                 </div>
 
                 <div class="mb-4">
-                    <label class="form-label">Instructions <span class="text-danger">*</span></label>
+                    <label class="form-label">Instructions</label>
                     <InputTextArea class="form-control" @bind-Value="model.Instructions" rows="7" />
                     <ValidationMessage For="() => model.Instructions" class="text-danger small" />
                 </div>

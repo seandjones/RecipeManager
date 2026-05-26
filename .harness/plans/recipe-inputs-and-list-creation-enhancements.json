@@ -1,0 +1,49 @@
+{
+  "slug": "recipe-inputs-and-list-creation-enhancements",
+  "title": "Recipe Inputs and Ingredient List Creation Enhancements",
+  "category": "feature",
+  "created_at": "2026-05-20T00:00:00Z",
+  "status": "complete",
+  "description": "Make recipe instructions optional, support recipe name field as plain name or source URL, and add a direct action to create an ingredient list from recipe ingredients.",
+  "verification_command": "dotnet build RecipeManager.ApiService/RecipeManager.ApiService.csproj && dotnet build RecipeManager.Web/RecipeManager.Web.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Adjust recipe validation and rendering for optional instructions",
+      "status": "complete",
+      "acceptance_criteria": [
+        "Recipe API accepts create/update payloads when Instructions is omitted or empty",
+        "Create/Edit recipe forms no longer require Instructions in client-side validation",
+        "Recipe details page handles missing instructions gracefully"
+      ],
+      "notes": "Removed required validation for instructions on API/web models, normalized instruction persistence to empty string when omitted, and added empty-state rendering on details page."
+    },
+    {
+      "id": 2,
+      "title": "Update name field semantics to allow recipe name or recipe URL",
+      "status": "complete",
+      "acceptance_criteria": [
+        "Recipe create/edit forms label Name field as name or recipe URL",
+        "No server-side validation rejects URL-formatted values in Name",
+        "UI helper text clarifies intended usage"
+      ],
+      "notes": "Updated create/edit form labels and helper text so the field is explicitly treated as recipe name or source link."
+    },
+    {
+      "id": 3,
+      "title": "Add create ingredient list action from recipe ingredients",
+      "status": "complete",
+      "acceptance_criteria": [
+        "Recipe details page exposes an action to create a new ingredient list from the recipe",
+        "Ingredients are split by line and added as individual ingredient items",
+        "Successful creation navigates to the new ingredient list detail page",
+        "Failure states show a user-visible error message"
+      ],
+      "notes": "Added Recipe Details action to create a new ingredient list from newline-split ingredients, add each line item, and navigate to the new list."
+    }
+  ],
+  "dependencies": [
+    "Requires existing IngredientListApiClient create list and add ingredient methods",
+    "Requires authenticated recipe pages"
+  ]
+}

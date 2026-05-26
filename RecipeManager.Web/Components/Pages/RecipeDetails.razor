@@ -1,7 +1,9 @@
 @page "/recipes/{Id:int}"
+@using RecipeManager.Web.Services
 @attribute [Authorize]
 @rendermode InteractiveServer
 @inject RecipeApiClient RecipeApi
+@inject IngredientListApiClient IngredientListApi
 @inject NavigationManager Navigation
 
 <PageTitle>@(recipe?.Name ?? "Recipe") - RecipeManager</PageTitle>
@@ -37,6 +39,11 @@ else
         <p class="lead text-muted mb-4">@recipe.Description</p>
     }
 
+    @if (!string.IsNullOrWhiteSpace(listCreationError))
+    {
+        <div class="alert alert-danger">@listCreationError</div>
+    }
+
     <div class="d-flex gap-4 text-muted mb-4">
         @if (recipe.PrepTimeMinutes.HasValue)
         {
@@ -63,7 +70,18 @@ else
 
     <div class="row">
         <div class="col-md-4 mb-4">
-            <h2 class="h4 mb-3">Ingredients</h2>
+            <div class="d-flex align-items-center justify-content-between mb-3 gap-2">
+                <h2 class="h4 mb-0">Ingredients</h2>
+                <button class="btn btn-sm btn-outline-primary"
+                        @onclick="CreateIngredientListFromRecipeAsync"
+                        disabled="@isCreatingIngredientList">
+                    @if (isCreatingIngredientList)
+                    {
+                        <span class="spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                    }
+                    Create Ingredient List
+                </button>
+            </div>
             <ul class="list-unstyled">
                 @foreach (var line in recipe.Ingredients.Split('\n', StringSplitOptions.RemoveEmptyEntries))
                 {
@@ -73,13 +91,20 @@ else
         </div>
         <div class="col-md-8 mb-4">
             <h2 class="h4 mb-3">Instructions</h2>
-            <ol class="ps-3">
-                @foreach (var step in recipe.Instructions.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                {
-                    var cleaned = step.Trim().TrimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
-                    <li class="mb-2">@cleaned</li>
-                }
-            </ol>
+            @if (string.IsNullOrWhiteSpace(recipe.Instructions))
+            {
+                <p class="text-muted mb-0">No instructions provided for this recipe.</p>
+            }
+            else
+            {
+                <ol class="ps-3">
+                    @foreach (var step in recipe.Instructions.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                    {
+                        var cleaned = step.Trim().TrimStart('0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '.', ' ');
+                        <li class="mb-2">@cleaned</li>
+                    }
+                </ol>
+            }
         </div>
     </div>
 }
@@ -110,6 +135,8 @@ else
     private RecipeManager.Web.Models.Recipe? recipe;
     private bool isLoading = true;
     private bool showDeleteConfirm;
+    private bool isCreatingIngredientList;
+    private string? listCreationError;
 
     protected override async Task OnInitializedAsync()
     {
@@ -124,5 +151,70 @@ else
     {
         await RecipeApi.DeleteRecipeAsync(Id);
         Navigation.NavigateTo("/recipes");
+    }
+
+    private async Task CreateIngredientListFromRecipeAsync()
+    {
+        if (recipe is null)
+        {
+            return;
+        }
+
+        listCreationError = null;
+
+        var ingredientLines = recipe.Ingredients
+            .Split('\n', StringSplitOptions.RemoveEmptyEntries)
+            .Select(line => line.Trim())
+            .Where(line => !string.IsNullOrWhiteSpace(line))
+            .ToArray();
+
+        if (ingredientLines.Length == 0)
+        {
+            listCreationError = "This recipe has no ingredients to create a list from.";
+            return;
+        }
+
+        isCreatingIngredientList = true;
+
+        try
+        {
+            var listName = $"Ingredients for {recipe.Name}";
+            var createdList = await IngredientListApi.CreateListAsync(new IngredientListRequest
+            {
+                Name = listName.Length > 150 ? listName[..150] : listName,
+                Description = string.IsNullOrWhiteSpace(recipe.Description)
+                    ? $"Created from recipe {recipe.Name}"
+                    : recipe.Description
+            });
+
+            if (createdList is null)
+            {
+                listCreationError = "Failed to create ingredient list. Please try again.";
+                return;
+            }
+
+            foreach (var ingredientLine in ingredientLines)
+            {
+                var (quantity, unit, name) = IngredientParser.Parse(ingredientLine);
+
+                var addedIngredient = await IngredientListApi.AddIngredientAsync(createdList.Id, new IngredientRequest
+                {
+                    Name = name,
+                    Quantity = quantity,
+                    Unit = unit
+                });
+
+                if (addedIngredient is null)
+                {
+                    listCreationError = "Ingredient list was created, but one or more ingredients could not be added.";
+                }
+            }
+
+            Navigation.NavigateTo($"/ingredient-lists/{createdList.Id}");
+        }
+        finally
+        {
+            isCreatingIngredientList = false;
+        }
     }
 }

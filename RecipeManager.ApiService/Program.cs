@@ -219,7 +219,7 @@ recipeGroup.MapPost("/", async (RecipeRequest request, RecipeDbContext db, Cance
         Name = request.Name.Trim(),
         Description = request.Description?.Trim(),
         Ingredients = request.Ingredients,
-        Instructions = request.Instructions,
+        Instructions = request.Instructions?.Trim() ?? string.Empty,
         PrepTimeMinutes = request.PrepTimeMinutes,
         CookTimeMinutes = request.CookTimeMinutes,
         Servings = request.Servings,
@@ -249,7 +249,7 @@ recipeGroup.MapPut("/{id:int}", async (int id, RecipeRequest request, RecipeDbCo
     recipe.Name = request.Name.Trim();
     recipe.Description = request.Description?.Trim();
     recipe.Ingredients = request.Ingredients;
-    recipe.Instructions = request.Instructions;
+    recipe.Instructions = request.Instructions?.Trim() ?? string.Empty;
     recipe.PrepTimeMinutes = request.PrepTimeMinutes;
     recipe.CookTimeMinutes = request.CookTimeMinutes;
     recipe.Servings = request.Servings;

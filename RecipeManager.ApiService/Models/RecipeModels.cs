@@ -14,7 +14,6 @@ public record RecipeRequest
     [Required]
     public string Ingredients { get; init; } = string.Empty;
 
-    [Required]
     public string Instructions { get; init; } = string.Empty;
 
     public int? PrepTimeMinutes { get; init; }

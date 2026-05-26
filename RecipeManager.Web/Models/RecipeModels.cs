@@ -28,7 +28,6 @@ public class RecipeFormModel
     [Required(ErrorMessage = "Ingredients are required.")]
     public string Ingredients { get; set; } = string.Empty;
 
-    [Required(ErrorMessage = "Instructions are required.")]
     public string Instructions { get; set; } = string.Empty;
 
     [Range(1, 1440, ErrorMessage = "Prep time must be between 1 and 1440 minutes.")]
