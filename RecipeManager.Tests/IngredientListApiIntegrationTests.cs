@@ -16,6 +16,9 @@ public class IngredientListApiIntegrationTests
     private WebApplicationFactory<ApiServiceProgram>? _factory;
     private HttpClient? _client;
 
+    private WebApplicationFactory<ApiServiceProgram> Factory => _factory ?? throw new InvalidOperationException("Test factory is not initialized.");
+    private HttpClient Client => _client ?? throw new InvalidOperationException("Test client is not initialized.");
+
     [TestInitialize]
     public void Initialize()
     {
@@ -85,7 +88,7 @@ public class IngredientListApiIntegrationTests
         var userId = Guid.NewGuid();
         AddUserHeader(userId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Weekly Grocery",
             Description = "Initial description"
@@ -95,19 +98,19 @@ public class IngredientListApiIntegrationTests
         var created = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(created);
 
-        var getAllResponse = await _client.GetAsync("/api/ingredient-lists");
+        var getAllResponse = await Client.GetAsync("/api/ingredient-lists");
         Assert.AreEqual(HttpStatusCode.OK, getAllResponse.StatusCode);
         var allLists = await getAllResponse.Content.ReadFromJsonAsync<List<IngredientListSummaryResponse>>();
         Assert.IsNotNull(allLists);
         Assert.IsTrue(allLists.Any(l => l.Id == created!.Id));
 
-        var getByIdResponse = await _client.GetAsync($"/api/ingredient-lists/{created!.Id}");
+        var getByIdResponse = await Client.GetAsync($"/api/ingredient-lists/{created!.Id}");
         Assert.AreEqual(HttpStatusCode.OK, getByIdResponse.StatusCode);
         var detail = await getByIdResponse.Content.ReadFromJsonAsync<IngredientListDetailResponse>();
         Assert.IsNotNull(detail);
         Assert.AreEqual(created.Id, detail.Id);
 
-        var updateResponse = await _client.PutAsJsonAsync($"/api/ingredient-lists/{created.Id}", new IngredientListRequest
+        var updateResponse = await Client.PutAsJsonAsync($"/api/ingredient-lists/{created.Id}", new IngredientListRequest
         {
             Name = "Weekly Grocery Updated",
             Description = "Updated description"
@@ -118,7 +121,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(updated);
         Assert.AreEqual("Weekly Grocery Updated", updated.Name);
 
-        var deleteResponse = await _client.DeleteAsync($"/api/ingredient-lists/{created.Id}");
+        var deleteResponse = await Client.DeleteAsync($"/api/ingredient-lists/{created.Id}");
         Assert.AreEqual(HttpStatusCode.NoContent, deleteResponse.StatusCode);
     }
 
@@ -128,7 +131,7 @@ public class IngredientListApiIntegrationTests
         var userId = Guid.NewGuid();
         AddUserHeader(userId);
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Meal Prep",
             Description = "List for testing ingredient endpoints"
@@ -137,7 +140,7 @@ public class IngredientListApiIntegrationTests
         var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(list);
 
-        var createRecipeResponse = await _client.PostAsJsonAsync("/api/recipes", new RecipeRequest
+        var createRecipeResponse = await Client.PostAsJsonAsync("/api/recipes", new RecipeRequest
         {
             Name = "Test Recipe",
             Description = "Recipe for linking",
@@ -149,7 +152,7 @@ public class IngredientListApiIntegrationTests
         var recipe = await createRecipeResponse.Content.ReadFromJsonAsync<Recipe>();
         Assert.IsNotNull(recipe);
 
-        var addIngredientResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/ingredients", new IngredientRequest
+        var addIngredientResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/ingredients", new IngredientRequest
         {
             Name = "Tomato",
             Quantity = "2",
@@ -161,7 +164,7 @@ public class IngredientListApiIntegrationTests
         var ingredient = await addIngredientResponse.Content.ReadFromJsonAsync<IngredientItemResponse>();
         Assert.IsNotNull(ingredient);
 
-        var updateIngredientResponse = await _client.PutAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients/{ingredient!.Id}", new IngredientRequest
+        var updateIngredientResponse = await Client.PutAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients/{ingredient!.Id}", new IngredientRequest
         {
             Name = "Tomato",
             Quantity = "3",
@@ -175,22 +178,22 @@ public class IngredientListApiIntegrationTests
         Assert.IsTrue(updatedIngredient.IsChecked);
         Assert.AreEqual("3", updatedIngredient.Quantity);
 
-        var addRecipeLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/recipes", new RecipeLinkRequest
+        var addRecipeLinkResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/recipes", new RecipeLinkRequest
         {
             RecipeId = recipe!.Id
         });
 
         Assert.AreEqual(HttpStatusCode.OK, addRecipeLinkResponse.StatusCode);
 
-        var getListResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        var getListResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}");
         var detail = await getListResponse.Content.ReadFromJsonAsync<IngredientListDetailResponse>();
         Assert.IsNotNull(detail);
         Assert.IsTrue(detail.Recipes.Any(r => r.Id == recipe.Id));
 
-        var removeRecipeLinkResponse = await _client.DeleteAsync($"/api/ingredient-lists/{list.Id}/recipes/{recipe.Id}");
+        var removeRecipeLinkResponse = await Client.DeleteAsync($"/api/ingredient-lists/{list.Id}/recipes/{recipe.Id}");
         Assert.AreEqual(HttpStatusCode.NoContent, removeRecipeLinkResponse.StatusCode);
 
-        var deleteIngredientResponse = await _client.DeleteAsync($"/api/ingredient-lists/{list.Id}/ingredients/{ingredient.Id}");
+        var deleteIngredientResponse = await Client.DeleteAsync($"/api/ingredient-lists/{list.Id}/ingredients/{ingredient.Id}");
         Assert.AreEqual(HttpStatusCode.NoContent, deleteIngredientResponse.StatusCode);
     }
 
@@ -200,7 +203,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Owner List",
             Description = "Owner-only checks"
@@ -209,10 +212,10 @@ public class IngredientListApiIntegrationTests
         var created = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(created);
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(Guid.NewGuid());
 
-        var updateResponse = await _client.PutAsJsonAsync($"/api/ingredient-lists/{created!.Id}", new IngredientListRequest
+        var updateResponse = await Client.PutAsJsonAsync($"/api/ingredient-lists/{created!.Id}", new IngredientListRequest
         {
             Name = "Hacker Edit",
             Description = "Should fail"
@@ -220,7 +223,7 @@ public class IngredientListApiIntegrationTests
 
         Assert.AreEqual(HttpStatusCode.Forbidden, updateResponse.StatusCode);
 
-        var deleteResponse = await _client.DeleteAsync($"/api/ingredient-lists/{created.Id}");
+        var deleteResponse = await Client.DeleteAsync($"/api/ingredient-lists/{created.Id}");
         Assert.AreEqual(HttpStatusCode.Forbidden, deleteResponse.StatusCode);
     }
 
@@ -230,7 +233,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Shared List",
             Description = "Share access check"
@@ -240,7 +243,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(list);
 
         var sharedUserId = Guid.NewGuid();
-        using var scope = _factory!.Services.CreateScope();
+        using var scope = Factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
         db.ListSharings.Add(new ListSharing
         {
@@ -253,13 +256,13 @@ public class IngredientListApiIntegrationTests
         });
         await db.SaveChangesAsync();
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(sharedUserId);
 
-        var getResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        var getResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}");
         Assert.AreEqual(HttpStatusCode.OK, getResponse.StatusCode);
 
-        var addIngredientResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients", new IngredientRequest
+        var addIngredientResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients", new IngredientRequest
         {
             Name = "Shared Item",
             Quantity = "1",
@@ -273,7 +276,7 @@ public class IngredientListApiIntegrationTests
     [TestMethod]
     public async Task Endpoints_RequireUserId()
     {
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "No User",
             Description = "Should fail"
@@ -288,7 +291,7 @@ public class IngredientListApiIntegrationTests
         AddUserHeader(Guid.NewGuid());
 
         var tooLongName = new string('a', 256);
-        var response = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var response = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = tooLongName,
             Description = "invalid"
@@ -305,7 +308,7 @@ public class IngredientListApiIntegrationTests
     {
         AddUserHeader(Guid.NewGuid());
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Validation List",
             Description = "For invalid ingredient checks"
@@ -315,7 +318,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(list);
 
         var tooLongUnit = new string('u', 51);
-        var response = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/ingredients", new IngredientRequest
+        var response = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/ingredients", new IngredientRequest
         {
             Name = "Valid Name",
             Quantity = "1",
@@ -335,7 +338,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Shareable List",
             Description = "Email invite flow"
@@ -345,7 +348,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(list);
 
         var inviteEmail = "collab@example.com";
-        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        var shareResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
         {
             Email = inviteEmail,
             AccessLevel = "Editor"
@@ -353,14 +356,14 @@ public class IngredientListApiIntegrationTests
 
         Assert.AreEqual(HttpStatusCode.OK, shareResponse.StatusCode);
 
-        var testEmailService = _factory!.Services.GetRequiredService<IEmailService>() as TestEmailService;
+        var testEmailService = Factory.Services.GetRequiredService<IEmailService>() as TestEmailService;
         Assert.IsNotNull(testEmailService);
         Assert.AreEqual(inviteEmail, testEmailService!.LastSentEmail);
         Assert.AreEqual("Shareable List", testEmailService.LastShareListName);
         Assert.AreEqual(AccessLevel.Editor, testEmailService.LastShareAccessLevel);
         Assert.IsFalse(string.IsNullOrWhiteSpace(testEmailService.LastShareUrl));
 
-        var sharingListResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        var sharingListResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
         Assert.AreEqual(HttpStatusCode.OK, sharingListResponse.StatusCode);
 
         var shares = await sharingListResponse.Content.ReadFromJsonAsync<List<IngredientListShareResponse>>();
@@ -373,7 +376,7 @@ public class IngredientListApiIntegrationTests
     {
         AddUserHeader(Guid.NewGuid());
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Link Shared List",
             Description = "Share token flow"
@@ -382,7 +385,7 @@ public class IngredientListApiIntegrationTests
         var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(list);
 
-        var generateLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
+        var generateLinkResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
         {
             AccessLevel = "Viewer",
             ExpiresInDays = 2
@@ -393,14 +396,14 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(linkPayload);
         StringAssert.Contains(linkPayload!.Url, "/ingredient-lists/shared/");
 
-        var sharedAccessResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload!.Token}");
+        var sharedAccessResponse = await Client.GetAsync($"/api/ingredient-lists/shared/{linkPayload!.Token}");
         Assert.AreEqual(HttpStatusCode.OK, sharedAccessResponse.StatusCode);
         var sharedPayload = await sharedAccessResponse.Content.ReadFromJsonAsync<SharedIngredientListAccessResponse>();
         Assert.IsNotNull(sharedPayload);
         Assert.AreEqual("Viewer", sharedPayload.AccessLevel);
         Assert.IsFalse(sharedPayload.CanEdit);
 
-        using (var scope = _factory!.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
             var token = await db.ListShareTokens.SingleAsync(t => t.Token == linkPayload.Token);
@@ -408,7 +411,7 @@ public class IngredientListApiIntegrationTests
             await db.SaveChangesAsync();
         }
 
-        var expiredResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload.Token}");
+        var expiredResponse = await Client.GetAsync($"/api/ingredient-lists/shared/{linkPayload.Token}");
         Assert.AreEqual(HttpStatusCode.BadRequest, expiredResponse.StatusCode);
     }
 
@@ -417,7 +420,7 @@ public class IngredientListApiIntegrationTests
     {
         AddUserHeader(Guid.NewGuid());
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Token Edit List",
             Description = "Editor and viewer behavior"
@@ -426,7 +429,7 @@ public class IngredientListApiIntegrationTests
         var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(list);
 
-        var editorLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
+        var editorLinkResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
         {
             AccessLevel = "Editor",
             ExpiresInDays = 2
@@ -436,7 +439,7 @@ public class IngredientListApiIntegrationTests
         var editorLink = await editorLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
         Assert.IsNotNull(editorLink);
 
-        var addByEditorResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/shared/{editorLink!.Token}/ingredients", new IngredientRequest
+        var addByEditorResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/shared/{editorLink!.Token}/ingredients", new IngredientRequest
         {
             Name = "Flour",
             Quantity = "2",
@@ -448,7 +451,7 @@ public class IngredientListApiIntegrationTests
         var addedIngredient = await addByEditorResponse.Content.ReadFromJsonAsync<IngredientItemResponse>();
         Assert.IsNotNull(addedIngredient);
 
-        var updateByEditorResponse = await _client.PutAsJsonAsync($"/api/ingredient-lists/shared/{editorLink.Token}/ingredients/{addedIngredient!.Id}", new IngredientRequest
+        var updateByEditorResponse = await Client.PutAsJsonAsync($"/api/ingredient-lists/shared/{editorLink.Token}/ingredients/{addedIngredient!.Id}", new IngredientRequest
         {
             Name = "Flour",
             Quantity = "3",
@@ -457,7 +460,7 @@ public class IngredientListApiIntegrationTests
         });
         Assert.AreEqual(HttpStatusCode.OK, updateByEditorResponse.StatusCode);
 
-        var viewerLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/share/link", new CreateIngredientListShareLinkRequest
+        var viewerLinkResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/share/link", new CreateIngredientListShareLinkRequest
         {
             AccessLevel = "Viewer",
             ExpiresInDays = 2
@@ -467,7 +470,7 @@ public class IngredientListApiIntegrationTests
         var viewerLink = await viewerLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
         Assert.IsNotNull(viewerLink);
 
-        var addByViewerResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/shared/{viewerLink!.Token}/ingredients", new IngredientRequest
+        var addByViewerResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/shared/{viewerLink!.Token}/ingredients", new IngredientRequest
         {
             Name = "Salt",
             IsChecked = false
@@ -481,7 +484,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createListResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Revocable List",
             Description = "Revoke sharing flow"
@@ -491,7 +494,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(list);
 
         var sharedEmail = "remove-me@example.com";
-        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        var shareResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
         {
             Email = sharedEmail,
             AccessLevel = "Viewer"
@@ -499,7 +502,7 @@ public class IngredientListApiIntegrationTests
 
         Assert.AreEqual(HttpStatusCode.OK, shareResponse.StatusCode);
 
-        var sharesResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        var sharesResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
         Assert.AreEqual(HttpStatusCode.OK, sharesResponse.StatusCode);
         var shares = await sharesResponse.Content.ReadFromJsonAsync<List<IngredientListShareResponse>>();
         Assert.IsNotNull(shares);
@@ -507,21 +510,21 @@ public class IngredientListApiIntegrationTests
         var emailShare = shares!.FirstOrDefault(s => s.ShareType == "Email" && s.SharedWithEmail == sharedEmail);
         Assert.IsNotNull(emailShare);
 
-        var revokeResponse = await _client.DeleteAsync($"/api/ingredient-lists/{list.Id}/sharing/{emailShare!.ShareId}");
+        var revokeResponse = await Client.DeleteAsync($"/api/ingredient-lists/{list.Id}/sharing/{emailShare!.ShareId}");
         Assert.AreEqual(HttpStatusCode.NoContent, revokeResponse.StatusCode);
 
         Guid sharedUserId;
-        using (var scope = _factory!.Services.CreateScope())
+        using (var scope = Factory.Services.CreateScope())
         {
             var authDb = scope.ServiceProvider.GetRequiredService<AuthDbContext>();
             var sharedUser = await authDb.Users.SingleAsync(u => u.Email == sharedEmail);
             sharedUserId = sharedUser.Id;
         }
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(sharedUserId);
 
-        var getAfterRevoke = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        var getAfterRevoke = await Client.GetAsync($"/api/ingredient-lists/{list.Id}");
         Assert.AreEqual(HttpStatusCode.Forbidden, getAfterRevoke.StatusCode);
     }
 
@@ -531,7 +534,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "View Only List",
             Description = "Viewer access test"
@@ -541,7 +544,7 @@ public class IngredientListApiIntegrationTests
         Assert.IsNotNull(list);
 
         var viewerUserId = Guid.NewGuid();
-        using var setupScope = _factory!.Services.CreateScope();
+        using var setupScope = Factory.Services.CreateScope();
         var db = setupScope.ServiceProvider.GetRequiredService<IngredientListDbContext>();
         db.ListSharings.Add(new ListSharing
         {
@@ -554,13 +557,13 @@ public class IngredientListApiIntegrationTests
         });
         await db.SaveChangesAsync();
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(viewerUserId);
 
-        var getResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}");
+        var getResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}");
         Assert.AreEqual(HttpStatusCode.OK, getResponse.StatusCode);
 
-        var addIngredientResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients", new IngredientRequest
+        var addIngredientResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/ingredients", new IngredientRequest
         {
             Name = "Viewer Item",
             Quantity = "1",
@@ -577,7 +580,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Owner-Protected List",
             Description = "Share authorization check"
@@ -586,10 +589,10 @@ public class IngredientListApiIntegrationTests
         var list = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(list);
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(Guid.NewGuid());
 
-        var shareResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
+        var shareResponse = await Client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/email", new ShareIngredientListByEmailRequest
         {
             Email = "attacker@example.com",
             AccessLevel = "Editor"
@@ -604,7 +607,7 @@ public class IngredientListApiIntegrationTests
         var ownerId = Guid.NewGuid();
         AddUserHeader(ownerId);
 
-        var createResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        var createResponse = await Client.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
         {
             Name = "Sharing Info List",
             Description = "Owner-only sharing info"
@@ -613,18 +616,18 @@ public class IngredientListApiIntegrationTests
         var list = await createResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
         Assert.IsNotNull(list);
 
-        var sharingInfoOwnerResponse = await _client.GetAsync($"/api/ingredient-lists/{list!.Id}/sharing");
+        var sharingInfoOwnerResponse = await Client.GetAsync($"/api/ingredient-lists/{list!.Id}/sharing");
         Assert.AreEqual(HttpStatusCode.OK, sharingInfoOwnerResponse.StatusCode);
 
-        _client.DefaultRequestHeaders.Remove("X-User-Id");
+        Client.DefaultRequestHeaders.Remove("X-User-Id");
         AddUserHeader(Guid.NewGuid());
 
-        var sharingInfoNonOwnerResponse = await _client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
+        var sharingInfoNonOwnerResponse = await Client.GetAsync($"/api/ingredient-lists/{list.Id}/sharing");
         Assert.AreEqual(HttpStatusCode.Forbidden, sharingInfoNonOwnerResponse.StatusCode);
     }
 
     private void AddUserHeader(Guid userId)
     {
-        _client!.DefaultRequestHeaders.Add("X-User-Id", userId.ToString());
+        Client.DefaultRequestHeaders.Add("X-User-Id", userId.ToString());
     }
 }

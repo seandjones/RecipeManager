@@ -21,6 +21,9 @@ public class AuthFlowIntegrationTests
     private WebApplicationFactory<ApiServiceProgram>? _factory;
     private HttpClient? _client;
 
+    private WebApplicationFactory<ApiServiceProgram> Factory => _factory ?? throw new InvalidOperationException("Test factory is not initialized.");
+    private HttpClient Client => _client ?? throw new InvalidOperationException("Test client is not initialized.");
+
     [TestInitialize]
     public void Initialize()
     {
@@ -95,7 +98,7 @@ public class AuthFlowIntegrationTests
     {
         // This test would work if we had a protected API endpoint
         // For now, we'll test that the auth endpoint exists
-        var response = await _client!.GetAsync("/api/auth/request-code");
+        var response = await Client.GetAsync("/api/auth/request-code");
 
         // Should return 405 Method Not Allowed (GET not supported, POST required)
         Assert.AreEqual(HttpStatusCode.MethodNotAllowed, response.StatusCode);
@@ -110,7 +113,7 @@ public class AuthFlowIntegrationTests
         var testEmail = "test@example.com";
 
         // Step 1: Request login code
-        var requestCodeResponse = await _client!.PostAsJsonAsync("/api/auth/request-code", new
+        var requestCodeResponse = await Client.PostAsJsonAsync("/api/auth/request-code", new
         {
             Email = testEmail
         });
@@ -121,14 +124,14 @@ public class AuthFlowIntegrationTests
         Assert.IsTrue(requestCodeResult.Success);
 
         // Step 2: Get the code from test email service
-        var services = _factory!.Services;
+        var services = Factory.Services;
         var testEmailService = services.GetRequiredService<IEmailService>() as TestEmailService;
         Assert.IsNotNull(testEmailService);
         var sentCode = testEmailService.LastSentCode;
         Assert.IsNotNull(sentCode);
 
         // Step 3: Verify code
-        var verifyCodeResponse = await _client.PostAsJsonAsync("/api/auth/verify-code", new
+        var verifyCodeResponse = await Client.PostAsJsonAsync("/api/auth/verify-code", new
         {
             Email = testEmail,
             Code = sentCode
@@ -149,7 +152,7 @@ public class AuthFlowIntegrationTests
     public async Task Logout_ClearsSession_ReturnsSuccess()
     {
         // Send logout request
-        var logoutResponse = await _client!.PostAsync("/api/auth/logout", null);
+        var logoutResponse = await Client.PostAsync("/api/auth/logout", null);
 
         Assert.AreEqual(HttpStatusCode.OK, logoutResponse.StatusCode);
         var logoutResult = await logoutResponse.Content.ReadFromJsonAsync<LogoutResponse>();
@@ -166,7 +169,7 @@ public class AuthFlowIntegrationTests
         var testEmail = "expired@example.com";
 
         // Request login code
-        var requestCodeResponse = await _client!.PostAsJsonAsync("/api/auth/request-code", new
+        var requestCodeResponse = await Client.PostAsJsonAsync("/api/auth/request-code", new
         {
             Email = testEmail
         });
@@ -174,7 +177,7 @@ public class AuthFlowIntegrationTests
         Assert.AreEqual(HttpStatusCode.OK, requestCodeResponse.StatusCode);
 
         // Get code
-        var services = _factory!.Services;
+        var services = Factory.Services;
         var testEmailService = services.GetRequiredService<IEmailService>() as TestEmailService;
         var sentCode = testEmailService!.LastSentCode;
 
@@ -193,7 +196,7 @@ public class AuthFlowIntegrationTests
         await dbContext.SaveChangesAsync();
 
         // Try to verify expired code
-        var verifyCodeResponse = await _client.PostAsJsonAsync("/api/auth/verify-code", new
+        var verifyCodeResponse = await Client.PostAsJsonAsync("/api/auth/verify-code", new
         {
             Email = testEmail,
             Code = sentCode
@@ -217,7 +220,7 @@ public class AuthFlowIntegrationTests
         // Send 3 requests (should succeed)
         for (int i = 0; i < 3; i++)
         {
-            var response = await _client!.PostAsJsonAsync("/api/auth/request-code", new
+            var response = await Client.PostAsJsonAsync("/api/auth/request-code", new
             {
                 Email = testEmail
             });
@@ -226,7 +229,7 @@ public class AuthFlowIntegrationTests
         }
 
         // 4th request should be rate limited
-        var rateLimitedResponse = await _client!.PostAsJsonAsync("/api/auth/request-code", new
+        var rateLimitedResponse = await Client.PostAsJsonAsync("/api/auth/request-code", new
         {
             Email = testEmail
         });
@@ -252,13 +255,13 @@ public class AuthFlowIntegrationTests
         var testEmail = "invalidcode@example.com";
 
         // Request code first
-        await _client!.PostAsJsonAsync("/api/auth/request-code", new
+        await Client.PostAsJsonAsync("/api/auth/request-code", new
         {
             Email = testEmail
         });
 
         // Try to verify with invalid code format
-        var verifyCodeResponse = await _client.PostAsJsonAsync("/api/auth/verify-code", new
+        var verifyCodeResponse = await Client.PostAsJsonAsync("/api/auth/verify-code", new
         {
             Email = testEmail,
             Code = "12345" // Only 5 digits
@@ -276,18 +279,18 @@ public class AuthFlowIntegrationTests
         var testEmail = "reuse@example.com";
 
         // Request code
-        await _client!.PostAsJsonAsync("/api/auth/request-code", new
+        await Client.PostAsJsonAsync("/api/auth/request-code", new
         {
             Email = testEmail
         });
 
         // Get code
-        var services = _factory!.Services;
+        var services = Factory.Services;
         var testEmailService = services.GetRequiredService<IEmailService>() as TestEmailService;
         var sentCode = testEmailService!.LastSentCode;
 
         // Verify code first time (should succeed)
-        var firstVerifyResponse = await _client.PostAsJsonAsync("/api/auth/verify-code", new
+        var firstVerifyResponse = await Client.PostAsJsonAsync("/api/auth/verify-code", new
         {
             Email = testEmail,
             Code = sentCode
@@ -296,7 +299,7 @@ public class AuthFlowIntegrationTests
         Assert.AreEqual(HttpStatusCode.OK, firstVerifyResponse.StatusCode);
 
         // Try to verify same code again (should fail)
-        var secondVerifyResponse = await _client.PostAsJsonAsync("/api/auth/verify-code", new
+        var secondVerifyResponse = await Client.PostAsJsonAsync("/api/auth/verify-code", new
         {
             Email = testEmail,
             Code = sentCode

@@ -277,7 +277,7 @@ public class AuthApiClientTests
         var client = new AuthApiClient(httpClient);
 
         // Act & Assert - HttpClient throws TaskCanceledException for cancelled requests
-        await Assert.ThrowsExceptionAsync<TaskCanceledException>(
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(
             async () => await client.RequestLoginCodeAsync("test@example.com", cts.Token));
     }
 
@@ -303,7 +303,7 @@ public class AuthApiClientTests
         var client = new AuthApiClient(httpClient);
 
         // Act & Assert - HttpClient throws TaskCanceledException for cancelled requests
-        await Assert.ThrowsExceptionAsync<TaskCanceledException>(
+        await Assert.ThrowsExactlyAsync<TaskCanceledException>(
             async () => await client.VerifyCodeAsync("test@example.com", "123456", cts.Token));
     }
 }

@@ -1,0 +1,28 @@
+{
+  "slug": "reduce-test-warning-noise",
+  "title": "Reduce Test Project Warning Noise",
+  "category": "improvement",
+  "created_at": "2026-05-28T00:00:00Z",
+  "status": "complete",
+  "description": "Clean up test-project warnings blocking signal/noise by fixing nullable client usage, analyzer recommendations, and SQL query parameterization warnings.",
+  "verification_command": "dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Eliminate warnings in test files",
+      "status": "complete",
+      "acceptance_criteria": [
+        "AuthFlowIntegrationTests has no CS8604 client-null warnings",
+        "IngredientListApiIntegrationTests has no CS8602/CS8604 client-null warnings",
+        "AuthApiClientTests uses Assert.ThrowsExactlyAsync per MSTEST0039",
+        "IngredientListSchemaTests no longer triggers EF1002 SqlQueryRaw warning",
+        "RecipeManager.Tests build succeeds"
+      ],
+      "notes": "Updated nullable client/factory access in AuthFlowIntegrationTests and IngredientListApiIntegrationTests to use non-null helper properties, replaced Assert.ThrowsExceptionAsync with Assert.ThrowsExactlyAsync in AuthApiClientTests, and made schema table existence query explicitly parameterized with SqlQueryRaw placeholders. dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj succeeds with no warnings."
+    }
+  ],
+  "dependencies": [
+    "Keep existing test semantics unchanged",
+    "Do not alter production runtime behavior"
+  ]
+}

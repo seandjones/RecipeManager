@@ -126,6 +126,28 @@ Updated AuthService unit tests to align with the current `AuthService` construct
 
 **Next:** Optionally address remaining nullable-analysis warnings in integration tests to reduce warning noise.
 
+## 2026-05-28 - Reduce test warning noise (Plan: reduce-test-warning-noise, Task #1)
+
+Cleaned warning noise in the test project by making client/factory access null-safe in integration tests, aligning cancellation assertions with MSTest analyzer guidance, and using explicit SQL parameter placeholders in schema verification.
+
+**Files Changed:**
+- RecipeManager.Tests/AuthFlowIntegrationTests.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- RecipeManager.Tests/AuthApiClientTests.cs
+- RecipeManager.Tests/IngredientListSchemaTests.cs
+- .harness/plans/reduce-test-warning-noise.json
+- .harness/progress.md
+
+**Test Results:**
+- `dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj`: Success (no warnings)
+
+**Gotchas/Notes:**
+- Introduced non-null helper properties (`Client`, `Factory`) to avoid pervasive null-forgiving usage in integration tests.
+- Replaced `Assert.ThrowsExceptionAsync` with `Assert.ThrowsExactlyAsync` for canceled request tests.
+- Switched schema table-count query to parameterized `SqlQueryRaw` placeholder form.
+
+**Next:** Optional: run full `dotnet test` suite and triage any runtime-only flaky failures separately from compile/analyzer health.
+
 ## 2026-04-12 - Project Initialized
 
 Created RecipeManager .NET Aspire project with harness skill system.

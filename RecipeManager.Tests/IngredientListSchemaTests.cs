@@ -165,8 +165,7 @@ public class IngredientListSchemaTests
             foreach (var tableName in expectedTables)
             {
                 var exists = await context.Database
-                    .SqlQueryRaw<int>(
-                        $"SELECT COUNT(*) AS \"Value\" FROM information_schema.tables WHERE table_name = '{tableName}'")
+                    .SqlQueryRaw<int>("SELECT COUNT(*) AS \"Value\" FROM information_schema.tables WHERE table_name = {0}", tableName)
                     .SingleAsync(CancellationToken.None);
 
                 Assert.AreEqual(1, exists, $"Expected PostgreSQL table '{tableName}' to exist");
