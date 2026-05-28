@@ -107,6 +107,25 @@ Resolved a runtime failure where shared ingredient-list pages loaded with "Unabl
 
 **Next:** If needed, harden baseline test project by fixing `AuthServiceTests` constructor logger injection so focused test filters can run normally.
 
+## 2026-05-28 - Fix AuthService test constructor mismatch (Plan: fix-authservice-tests-constructor-mismatch, Task #1)
+
+Updated AuthService unit tests to align with the current `AuthService` constructor signature by providing both `IHostEnvironment` and `ILogger<AuthService>` dependencies through a shared helper.
+
+**Files Changed:**
+- RecipeManager.Tests/AuthServiceTests.cs
+- .harness/plans/fix-authservice-tests-constructor-mismatch.json
+- .harness/progress.md
+
+**Test Results:**
+- `dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj`: Success (no CS7036 constructor mismatch errors)
+
+**Gotchas/Notes:**
+- Added `CreateAuthService` helper to avoid duplicating environment/logger mocks across test methods.
+- No production code changes were required.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Optionally address remaining nullable-analysis warnings in integration tests to reduce warning noise.
+
 ## 2026-04-12 - Project Initialized
 
 Created RecipeManager .NET Aspire project with harness skill system.

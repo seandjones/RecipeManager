@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Moq;
 using RecipeManager.ApiService.Data;
@@ -18,6 +19,15 @@ public class AuthServiceTests
         return new AuthDbContext(options);
     }
 
+    private static AuthService CreateAuthService(AuthDbContext dbContext, IEmailService emailService)
+    {
+        var hostEnvironmentMock = new Mock<IHostEnvironment>();
+        hostEnvironmentMock.SetupGet(x => x.EnvironmentName).Returns(Environments.Development);
+
+        var loggerMock = new Mock<ILogger<AuthService>>();
+        return new AuthService(dbContext, emailService, hostEnvironmentMock.Object, loggerMock.Object);
+    }
+
     [TestMethod]
     public async Task RequestLoginCode_WithValidEmail_ReturnsSuccess()
     {
@@ -26,9 +36,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         var result = await authService.RequestLoginCodeAsync("test@example.com");
@@ -58,9 +66,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         await authService.RequestLoginCodeAsync("  TEST@EXAMPLE.COM  ");
@@ -79,9 +85,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act - Request 3 codes (rate limit)
         await authService.RequestLoginCodeAsync("test@example.com");
@@ -106,9 +110,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(false);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         var result = await authService.RequestLoginCodeAsync("test@example.com");
@@ -126,9 +128,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Request a code first
         await authService.RequestLoginCodeAsync("test@example.com");
@@ -160,8 +160,7 @@ public class AuthServiceTests
         // Arrange
         var dbContext = CreateDbContext();
         var emailServiceMock = new Mock<IEmailService>();
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         var result = await authService.VerifyLoginCodeAsync("test@example.com", "123456");
@@ -197,8 +196,7 @@ public class AuthServiceTests
         await dbContext.SaveChangesAsync();
 
         var emailServiceMock = new Mock<IEmailService>();
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         var result = await authService.VerifyLoginCodeAsync("test@example.com", "123456");
@@ -234,8 +232,7 @@ public class AuthServiceTests
         await dbContext.SaveChangesAsync();
 
         var emailServiceMock = new Mock<IEmailService>();
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Act
         var result = await authService.VerifyLoginCodeAsync("test@example.com", "123456");
@@ -253,9 +250,7 @@ public class AuthServiceTests
         var emailServiceMock = new Mock<IEmailService>();
         emailServiceMock.Setup(x => x.SendLoginCodeAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-
-        var loggerMock = new Mock<ILogger<AuthService>>();
-        var authService = new AuthService(dbContext, emailServiceMock.Object, loggerMock.Object);
+        var authService = CreateAuthService(dbContext, emailServiceMock.Object);
 
         // Request a code
         await authService.RequestLoginCodeAsync("test@example.com");

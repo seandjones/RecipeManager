@@ -1,0 +1,25 @@
+{
+  "slug": "fix-authservice-tests-constructor-mismatch",
+  "title": "Fix AuthService Test Constructor Mismatch",
+  "category": "bug",
+  "created_at": "2026-05-28T00:00:00Z",
+  "status": "complete",
+  "description": "Update AuthService unit tests to satisfy AuthService constructor dependencies after logger/environment signature changes.",
+  "verification_command": "dotnet build RecipeManager.Tests/RecipeManager.Tests.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Provide IHostEnvironment and ILogger dependencies in AuthServiceTests",
+      "status": "complete",
+      "acceptance_criteria": [
+        "AuthServiceTests instantiate AuthService using the current constructor signature",
+        "RecipeManager.Tests project builds without CS7036 constructor mismatch errors",
+        "No production code behavior is changed"
+      ],
+      "notes": "Refactored AuthServiceTests to use a CreateAuthService helper that provides IHostEnvironment and ILogger<AuthService> mocks, matching the current AuthService constructor signature. dotnet build for RecipeManager.Tests now succeeds without CS7036 errors. Evaluator verdict: PASS."
+    }
+  ],
+  "dependencies": [
+    "AuthService constructor currently requires AuthDbContext, IEmailService, IHostEnvironment, ILogger<AuthService>"
+  ]
+}
