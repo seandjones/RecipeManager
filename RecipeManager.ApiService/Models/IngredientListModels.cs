@@ -72,6 +72,8 @@ public record ShareIngredientListByEmailRequest
     public string Email { get; init; } = string.Empty;
 
     public string AccessLevel { get; init; } = "Viewer";
+
+    public string? WebBaseUrl { get; init; }
 }
 
 public record CreateIngredientListShareLinkRequest
@@ -80,6 +82,8 @@ public record CreateIngredientListShareLinkRequest
 
     [Range(1, 365)]
     public int ExpiresInDays { get; init; } = 7;
+
+    public string? WebBaseUrl { get; init; }
 }
 
 public record IngredientListShareLinkResponse(

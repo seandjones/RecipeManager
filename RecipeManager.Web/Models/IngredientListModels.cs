@@ -111,10 +111,12 @@ internal class ShareIngredientListByEmailRequest
 {
     public string Email { get; set; } = string.Empty;
     public string AccessLevel { get; set; } = "Viewer";
+    public string? WebBaseUrl { get; set; }
 }
 
 internal class CreateIngredientListShareLinkRequest
 {
     public string AccessLevel { get; set; } = "Viewer";
     public int ExpiresInDays { get; set; } = 7;
+    public string? WebBaseUrl { get; set; }
 }

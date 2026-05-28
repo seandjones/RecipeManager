@@ -61,7 +61,7 @@ public class IngredientListApiClientTests
         var payload = new
         {
             Token = expectedToken,
-            Url = $"https://example.test/api/ingredient-lists/shared/{expectedToken}",
+            Url = $"https://example.test/ingredient-lists/shared/{expectedToken}",
             AccessLevel = "Viewer",
             ExpiresAt = DateTime.UtcNow.AddDays(7)
         };
@@ -323,6 +323,57 @@ public class IngredientListApiClientTests
             });
 
         var result = await client.ShareListViaEmailAsync(listId, "test@example.com", "Viewer");
+
+        Assert.IsTrue(result);
+    }
+
+    [TestMethod]
+    public async Task AddSharedIngredientAsync_WithSuccessResponse_ReturnsIngredient()
+    {
+        var token = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+
+        var client = CreateClient(
+            HttpStatusCode.Created,
+            new
+            {
+                Id = ingredientId,
+                Name = "Butter",
+                Quantity = "1",
+                Unit = "stick",
+                IsChecked = false,
+                CreatedAt = DateTime.UtcNow
+            },
+            request =>
+            {
+                Assert.AreEqual(HttpMethod.Post, request.Method);
+                Assert.IsTrue(request.RequestUri!.AbsolutePath.EndsWith($"/api/ingredient-lists/shared/{token}/ingredients"));
+            });
+
+        var result = await client.AddSharedIngredientAsync(token, new IngredientRequest
+        {
+            Name = "Butter"
+        });
+
+        Assert.IsNotNull(result);
+        Assert.AreEqual(ingredientId, result!.Id);
+    }
+
+    [TestMethod]
+    public async Task DeleteSharedIngredientAsync_WithSuccessResponse_ReturnsTrue()
+    {
+        var token = Guid.NewGuid();
+        var ingredientId = Guid.NewGuid();
+        var client = CreateClient(
+            HttpStatusCode.NoContent,
+            null,
+            request =>
+            {
+                Assert.AreEqual(HttpMethod.Delete, request.Method);
+                Assert.IsTrue(request.RequestUri!.AbsolutePath.EndsWith($"/api/ingredient-lists/shared/{token}/ingredients/{ingredientId}"));
+            });
+
+        var result = await client.DeleteSharedIngredientAsync(token, ingredientId);
 
         Assert.IsTrue(result);
     }
@@ -835,7 +886,7 @@ public class IngredientListApiClientTests
                 return JsonResponse(HttpStatusCode.OK, new
                 {
                     Token = token,
-                    Url = $"https://test.api/api/ingredient-lists/shared/{token}",
+                    Url = $"https://test.api/ingredient-lists/shared/{token}",
                     AccessLevel = "Viewer",
                     ExpiresAt = DateTime.UtcNow.AddDays(7)
                 });

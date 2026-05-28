@@ -168,14 +168,20 @@ public class IngredientListApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<bool> ShareListViaEmailAsync(Guid listId, string email, string accessLevel, CancellationToken cancellationToken = default)
+    public async Task<bool> ShareListViaEmailAsync(
+        Guid listId,
+        string email,
+        string accessLevel,
+        string? webBaseUrl = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             var request = new ShareIngredientListByEmailRequest
             {
                 Email = email,
-                AccessLevel = accessLevel
+                AccessLevel = accessLevel,
+                WebBaseUrl = webBaseUrl
             };
 
             var response = await httpClient.PostAsJsonAsync($"/api/ingredient-lists/{listId}/share/email", request, cancellationToken);
@@ -187,14 +193,20 @@ public class IngredientListApiClient(HttpClient httpClient)
         }
     }
 
-    public async Task<IngredientListShareLink?> GenerateShareLinkAsync(Guid listId, string accessLevel, CancellationToken cancellationToken = default)
+    public async Task<IngredientListShareLink?> GenerateShareLinkAsync(
+        Guid listId,
+        string accessLevel,
+        int expiresInDays = 7,
+        string? webBaseUrl = null,
+        CancellationToken cancellationToken = default)
     {
         try
         {
             var request = new CreateIngredientListShareLinkRequest
             {
                 AccessLevel = accessLevel,
-                ExpiresInDays = 7
+                ExpiresInDays = expiresInDays,
+                WebBaseUrl = webBaseUrl
             };
 
             var response = await httpClient.PostAsJsonAsync($"/api/ingredient-lists/{listId}/share/link", request, cancellationToken);
@@ -226,6 +238,63 @@ public class IngredientListApiClient(HttpClient httpClient)
         catch (Exception)
         {
             return null;
+        }
+    }
+
+    public async Task<IngredientItem?> AddSharedIngredientAsync(Guid token, IngredientRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await httpClient.PostAsJsonAsync($"/api/ingredient-lists/shared/{token}/ingredients", request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<IngredientItem>(cancellationToken);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public async Task<IngredientItem?> UpdateSharedIngredientAsync(
+        Guid token,
+        Guid ingredientId,
+        IngredientRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await httpClient.PutAsJsonAsync(
+                $"/api/ingredient-lists/shared/{token}/ingredients/{ingredientId}",
+                request,
+                cancellationToken);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                return null;
+            }
+
+            return await response.Content.ReadFromJsonAsync<IngredientItem>(cancellationToken);
+        }
+        catch (Exception)
+        {
+            return null;
+        }
+    }
+
+    public async Task<bool> DeleteSharedIngredientAsync(Guid token, Guid ingredientId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var response = await httpClient.DeleteAsync($"/api/ingredient-lists/shared/{token}/ingredients/{ingredientId}", cancellationToken);
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception)
+        {
+            return false;
         }
     }
 

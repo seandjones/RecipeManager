@@ -1,6 +1,7 @@
 @rendermode InteractiveServer
 @inject IngredientListApiClient IngredientListApi
 @inject IJSRuntime JS
+@inject NavigationManager Navigation
 
 <div class="modal d-block" tabindex="-1" style="background:rgba(0,0,0,0.5)">
     <div class="modal-dialog modal-dialog-centered">
@@ -150,7 +151,11 @@
 
         try
         {
-            var ok = await IngredientListApi.ShareListViaEmailAsync(ListId, inviteEmail.Trim(), emailAccessLevel);
+            var ok = await IngredientListApi.ShareListViaEmailAsync(
+                ListId,
+                inviteEmail.Trim(),
+                emailAccessLevel,
+                GetWebBaseUrl());
             if (ok)
             {
                 successMessage = $"Invitation sent to {inviteEmail.Trim()}.";
@@ -175,7 +180,11 @@
 
         try
         {
-            var link = await IngredientListApi.GenerateShareLinkAsync(ListId, linkAccessLevel);
+            var link = await IngredientListApi.GenerateShareLinkAsync(
+                ListId,
+                linkAccessLevel,
+                linkExpiryDays,
+                GetWebBaseUrl());
             if (link is not null)
             {
                 generatedLink = link;
@@ -204,5 +213,10 @@
         {
             errorMessage = "Copy failed. Please copy the link manually.";
         }
+    }
+
+    private string GetWebBaseUrl()
+    {
+        return Navigation.ToAbsoluteUri("/").GetLeftPart(UriPartial.Authority);
     }
 }

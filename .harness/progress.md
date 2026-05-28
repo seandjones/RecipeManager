@@ -58,6 +58,34 @@ Implemented recipe input flexibility updates and added a direct recipe-to-ingred
 
 ---
 
+## 2026-05-28 - Fix shared ingredient-list links to open web view (Plan: fix-shared-ingredient-list-web-links, Task #1)
+
+Implemented a full shared-link UX fix so generated share links and invitation emails target a real web page (`/ingredient-lists/shared/{token}`) instead of the API JSON endpoint. Added anonymous shared-list rendering and token-scoped editor operations for ingredient management while keeping viewer access read-only.
+
+**Files Changed:**
+- RecipeManager.ApiService/Program.cs
+- RecipeManager.ApiService/Models/IngredientListModels.cs
+- RecipeManager.Web/Components/Pages/SharedIngredientList.razor
+- RecipeManager.Web/Components/Pages/ShareIngredientListModal.razor
+- RecipeManager.Web/Services/IngredientListApiClient.cs
+- RecipeManager.Web/Models/IngredientListModels.cs
+- RecipeManager.Tests/IngredientListApiIntegrationTests.cs
+- RecipeManager.Tests/IngredientListApiClientTests.cs
+- .harness/plans/fix-shared-ingredient-list-web-links.json
+- .harness/progress.md
+
+**Test Results:**
+- `dotnet build RecipeManager.ApiService/RecipeManager.ApiService.csproj`: Success (existing OpenAPI deprecation warnings)
+- `dotnet build RecipeManager.Web/RecipeManager.Web.csproj`: Success
+- `dotnet test RecipeManager.Tests/RecipeManager.Tests.csproj --filter "IngredientListApiIntegrationTests|IngredientListApiClientTests"`: blocked by pre-existing unrelated `AuthServiceTests` constructor compile errors in test project baseline
+
+**Gotchas/Notes:**
+- Share endpoints now accept optional `WebBaseUrl` from callers so links resolve to the frontend host even when API runs behind service-discovery/internal hostnames.
+- Added token-scoped ingredient mutation endpoints (`POST|PUT|DELETE /api/ingredient-lists/shared/{token}/ingredients...`) with explicit Editor-only enforcement.
+- Evaluator verdict: OVERALL PASS.
+
+**Next:** Verify the end-user flow in browser across anonymous viewer and editor links once broader test-project baseline issues are fixed.
+
 ## 2026-04-12 - Project Initialized
 
 Created RecipeManager .NET Aspire project with harness skill system.

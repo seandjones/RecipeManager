@@ -1,0 +1,28 @@
+{
+  "slug": "fix-shared-ingredient-list-web-links",
+  "title": "Fix Shared Ingredient List Links to Open Web View",
+  "category": "bug",
+  "created_at": "2026-05-28T00:00:00Z",
+  "status": "complete",
+  "description": "Ensure ingredient list sharing links open a web page instead of API JSON, and enforce viewer/editor behavior in shared-link access.",
+  "verification_command": "dotnet build RecipeManager.ApiService/RecipeManager.ApiService.csproj && dotnet build RecipeManager.Web/RecipeManager.Web.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Route share links to web UI and support editor/viewer shared access",
+      "status": "complete",
+      "acceptance_criteria": [
+        "Share link generation and email invites produce URLs that point to /ingredient-lists/shared/{token} instead of /api/ingredient-lists/shared/{token}",
+        "Web frontend provides a shared ingredient-list page at /ingredient-lists/shared/{token} for anonymous access",
+        "Viewer links can read but not mutate shared list ingredients",
+        "Editor links can add, update, and remove ingredients through token-scoped API endpoints",
+        "ApiService and Web projects build successfully"
+      ],
+      "notes": "Implemented frontend-facing share URL generation for email and link share flows, added anonymous shared-list page at /ingredient-lists/shared/{token}, and added token-scoped ingredient mutation endpoints enforcing Editor-only writes. ApiService/Web builds pass. Evaluator verdict: PASS."
+    }
+  ],
+  "dependencies": [
+    "Uses existing ListShareToken model and AccessLevel fields",
+    "Keeps existing owner/shared-user authenticated endpoints unchanged"
+  ]
+}

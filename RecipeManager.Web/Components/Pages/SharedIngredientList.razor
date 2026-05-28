@@ -1,0 +1,297 @@
+@page "/ingredient-lists/shared/{Token:guid}"
+@attribute [AllowAnonymous]
+@attribute [StreamRendering(true)]
+@rendermode InteractiveServer
+@inject IngredientListApiClient IngredientListApi
+
+<PageTitle>@(sharedList?.Name ?? "Shared Ingredient List") - RecipeManager</PageTitle>
+
+@if (isLoading)
+{
+    <p class="text-muted"><em>Loading shared ingredient list...</em></p>
+}
+else if (!string.IsNullOrWhiteSpace(loadError))
+{
+    <div class="alert alert-danger">@loadError</div>
+}
+else if (sharedList is null)
+{
+    <div class="alert alert-warning">
+        <h4>Shared list unavailable</h4>
+        <p class="mb-0">This link is invalid, expired, or no longer available.</p>
+    </div>
+}
+else
+{
+    <div class="d-flex align-items-center mb-3 gap-2 flex-wrap">
+        <h1 class="mb-0 flex-grow-1">@sharedList.Name</h1>
+        <span class="badge @(canEdit ? "text-bg-success" : "text-bg-secondary")">
+            @(canEdit ? "Editor Access" : "Viewer Access")
+        </span>
+    </div>
+
+    @if (!string.IsNullOrWhiteSpace(sharedList.Description))
+    {
+        <p class="lead text-muted">@sharedList.Description</p>
+    }
+
+    @if (!string.IsNullOrWhiteSpace(actionMessage))
+    {
+        <div class="alert alert-success">@actionMessage</div>
+    }
+    @if (!string.IsNullOrWhiteSpace(actionError))
+    {
+        <div class="alert alert-danger">@actionError</div>
+    }
+
+    <div class="card mb-4">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Ingredients</h2>
+            <span class="badge text-bg-secondary">@sharedList.Ingredients.Count item(s)</span>
+        </div>
+        <div class="card-body">
+            @if (sharedList.Ingredients.Count == 0)
+            {
+                <p class="text-muted mb-0">No ingredients yet.</p>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table align-middle">
+                        <thead>
+                            <tr>
+                                <th>Done</th>
+                                <th>Name</th>
+                                <th>Quantity</th>
+                                <th>Unit</th>
+                                <th class="text-end">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var ingredient in sharedList.Ingredients.OrderBy(i => i.CreatedAt))
+                            {
+                                <tr>
+                                    <td>
+                                        <input type="checkbox"
+                                               checked="@ingredient.IsChecked"
+                                               disabled="@(!canEdit)"
+                                               @onchange="async e => await ToggleIngredientAsync(ingredient, e.Value as bool? == true)" />
+                                    </td>
+                                    <td>@ingredient.Name</td>
+                                    <td>@ingredient.Quantity</td>
+                                    <td>@ingredient.Unit</td>
+                                    <td class="text-end">
+                                        @if (canEdit)
+                                        {
+                                            <button class="btn btn-sm btn-outline-danger"
+                                                    @onclick="() => RemoveIngredientAsync(ingredient.Id)">
+                                                Remove
+                                            </button>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+        </div>
+    </div>
+
+    @if (canEdit)
+    {
+        <div class="card mb-4">
+            <div class="card-header">
+                <h2 class="h5 mb-0">Add Ingredient</h2>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-5">
+                        <input class="form-control" placeholder="Ingredient name" @bind="newIngredientName" />
+                    </div>
+                    <div class="col-md-3">
+                        <input class="form-control" placeholder="Quantity" @bind="newIngredientQuantity" />
+                    </div>
+                    <div class="col-md-2">
+                        <input class="form-control" placeholder="Unit" @bind="newIngredientUnit" />
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button class="btn btn-primary" @onclick="AddIngredientAsync" disabled="@isSavingIngredient">
+                            @(isSavingIngredient ? "Adding..." : "Add")
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <h2 class="h5 mb-0">Associated Recipes</h2>
+            <span class="badge text-bg-secondary">@sharedList.Recipes.Count recipe(s)</span>
+        </div>
+        <div class="card-body">
+            @if (sharedList.Recipes.Count == 0)
+            {
+                <p class="text-muted mb-0">No associated recipes.</p>
+            }
+            else
+            {
+                <ul class="list-group list-group-flush">
+                    @foreach (var recipe in sharedList.Recipes.OrderBy(r => r.Name))
+                    {
+                        <li class="list-group-item">
+                            <a href="/recipes/@recipe.Id">@recipe.Name</a>
+                        </li>
+                    }
+                </ul>
+            }
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Guid Token { get; set; }
+
+    private SharedIngredientListAccess? sharedList;
+    private bool isLoading = true;
+    private bool isSavingIngredient;
+    private string? loadError;
+    private string? actionError;
+    private string? actionMessage;
+
+    private string newIngredientName = string.Empty;
+    private string? newIngredientQuantity;
+    private string? newIngredientUnit;
+
+    private bool canEdit => sharedList?.CanEdit == true;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        await LoadSharedListAsync();
+    }
+
+    private async Task LoadSharedListAsync()
+    {
+        isLoading = true;
+        loadError = null;
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            sharedList = await IngredientListApi.GetSharedAccessAsync(Token);
+            if (sharedList is null)
+            {
+                loadError = "Unable to load this shared list.";
+            }
+        }
+        catch
+        {
+            loadError = "Something went wrong while loading this shared list.";
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task AddIngredientAsync()
+    {
+        if (!canEdit)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(newIngredientName))
+        {
+            actionError = "Ingredient name is required.";
+            return;
+        }
+
+        isSavingIngredient = true;
+        actionError = null;
+        actionMessage = null;
+
+        try
+        {
+            var created = await IngredientListApi.AddSharedIngredientAsync(Token, new IngredientRequest
+            {
+                Name = newIngredientName,
+                Quantity = newIngredientQuantity,
+                Unit = newIngredientUnit,
+                IsChecked = false
+            });
+
+            if (created is null)
+            {
+                actionError = "Unable to add ingredient. This link may have expired or does not allow edits.";
+                return;
+            }
+
+            sharedList!.Ingredients.Add(created);
+            newIngredientName = string.Empty;
+            newIngredientQuantity = null;
+            newIngredientUnit = null;
+            actionMessage = "Ingredient added.";
+        }
+        finally
+        {
+            isSavingIngredient = false;
+        }
+    }
+
+    private async Task ToggleIngredientAsync(IngredientItem ingredient, bool isChecked)
+    {
+        if (!canEdit)
+        {
+            return;
+        }
+
+        actionError = null;
+        actionMessage = null;
+
+        var updated = await IngredientListApi.UpdateSharedIngredientAsync(Token, ingredient.Id, new IngredientRequest
+        {
+            Name = ingredient.Name,
+            Quantity = ingredient.Quantity,
+            Unit = ingredient.Unit,
+            IsChecked = isChecked
+        });
+
+        if (updated is null)
+        {
+            actionError = "Unable to update ingredient. This link may have expired or does not allow edits.";
+            return;
+        }
+
+        ingredient.IsChecked = updated.IsChecked;
+        actionMessage = "Ingredient updated.";
+    }
+
+    private async Task RemoveIngredientAsync(Guid ingredientId)
+    {
+        if (!canEdit)
+        {
+            return;
+        }
+
+        actionError = null;
+        actionMessage = null;
+
+        var removed = await IngredientListApi.DeleteSharedIngredientAsync(Token, ingredientId);
+        if (!removed)
+        {
+            actionError = "Unable to remove ingredient. This link may have expired or does not allow edits.";
+            return;
+        }
+
+        var existing = sharedList!.Ingredients.FirstOrDefault(i => i.Id == ingredientId);
+        if (existing is not null)
+        {
+            sharedList.Ingredients.Remove(existing);
+        }
+
+        actionMessage = "Ingredient removed.";
+    }
+}

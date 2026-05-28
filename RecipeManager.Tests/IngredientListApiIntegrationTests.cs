@@ -391,6 +391,7 @@ public class IngredientListApiIntegrationTests
         Assert.AreEqual(HttpStatusCode.OK, generateLinkResponse.StatusCode);
         var linkPayload = await generateLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
         Assert.IsNotNull(linkPayload);
+        StringAssert.Contains(linkPayload!.Url, "/ingredient-lists/shared/");
 
         var sharedAccessResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload!.Token}");
         Assert.AreEqual(HttpStatusCode.OK, sharedAccessResponse.StatusCode);
@@ -409,6 +410,69 @@ public class IngredientListApiIntegrationTests
 
         var expiredResponse = await _client.GetAsync($"/api/ingredient-lists/shared/{linkPayload.Token}");
         Assert.AreEqual(HttpStatusCode.BadRequest, expiredResponse.StatusCode);
+    }
+
+    [TestMethod]
+    public async Task ShareTokenEditor_CanModifyIngredients_ViewerCannot()
+    {
+        AddUserHeader(Guid.NewGuid());
+
+        var createListResponse = await _client!.PostAsJsonAsync("/api/ingredient-lists", new IngredientListRequest
+        {
+            Name = "Token Edit List",
+            Description = "Editor and viewer behavior"
+        });
+
+        var list = await createListResponse.Content.ReadFromJsonAsync<IngredientListSummaryResponse>();
+        Assert.IsNotNull(list);
+
+        var editorLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list!.Id}/share/link", new CreateIngredientListShareLinkRequest
+        {
+            AccessLevel = "Editor",
+            ExpiresInDays = 2
+        });
+        Assert.AreEqual(HttpStatusCode.OK, editorLinkResponse.StatusCode);
+
+        var editorLink = await editorLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
+        Assert.IsNotNull(editorLink);
+
+        var addByEditorResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/shared/{editorLink!.Token}/ingredients", new IngredientRequest
+        {
+            Name = "Flour",
+            Quantity = "2",
+            Unit = "cups",
+            IsChecked = false
+        });
+        Assert.AreEqual(HttpStatusCode.Created, addByEditorResponse.StatusCode);
+
+        var addedIngredient = await addByEditorResponse.Content.ReadFromJsonAsync<IngredientItemResponse>();
+        Assert.IsNotNull(addedIngredient);
+
+        var updateByEditorResponse = await _client.PutAsJsonAsync($"/api/ingredient-lists/shared/{editorLink.Token}/ingredients/{addedIngredient!.Id}", new IngredientRequest
+        {
+            Name = "Flour",
+            Quantity = "3",
+            Unit = "cups",
+            IsChecked = true
+        });
+        Assert.AreEqual(HttpStatusCode.OK, updateByEditorResponse.StatusCode);
+
+        var viewerLinkResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/{list.Id}/share/link", new CreateIngredientListShareLinkRequest
+        {
+            AccessLevel = "Viewer",
+            ExpiresInDays = 2
+        });
+        Assert.AreEqual(HttpStatusCode.OK, viewerLinkResponse.StatusCode);
+
+        var viewerLink = await viewerLinkResponse.Content.ReadFromJsonAsync<IngredientListShareLinkResponse>();
+        Assert.IsNotNull(viewerLink);
+
+        var addByViewerResponse = await _client.PostAsJsonAsync($"/api/ingredient-lists/shared/{viewerLink!.Token}/ingredients", new IngredientRequest
+        {
+            Name = "Salt",
+            IsChecked = false
+        });
+        Assert.AreEqual(HttpStatusCode.Forbidden, addByViewerResponse.StatusCode);
     }
 
     [TestMethod]
