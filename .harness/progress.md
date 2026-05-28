@@ -86,6 +86,27 @@ Implemented a full shared-link UX fix so generated share links and invitation em
 
 **Next:** Verify the end-user flow in browser across anonymous viewer and editor links once broader test-project baseline issues are fixed.
 
+## 2026-05-28 - Fix shared page load for anonymous share links (Plan: fix-shared-page-auth-state-scope, Task #1)
+
+Resolved a runtime failure where shared ingredient-list pages loaded with "Unable to load this shared list." despite valid tokens. The issue was an `InvalidOperationException` in `CurrentUserHeaderHandler` when `GetAuthenticationStateAsync()` was called outside a Razor component DI scope for anonymous requests.
+
+**Files Changed:**
+- RecipeManager.Web/Services/CurrentUserHeaderHandler.cs
+- RecipeManager.Tests/CurrentUserHeaderHandlerTests.cs
+- .harness/plans/fix-shared-page-auth-state-scope.json
+- .harness/progress.md
+
+**Test Results:**
+- `dotnet build RecipeManager.Web/RecipeManager.Web.csproj`: Success
+- `dotnet test RecipeManager.Tests/RecipeManager.Tests.csproj --filter "CurrentUserHeaderHandlerTests"`: blocked by pre-existing unrelated `AuthServiceTests` constructor compile errors in test project baseline
+- Manual browser validation: PASS for viewer/editor shared page loading and role-specific UI behavior
+
+**Gotchas/Notes:**
+- For anonymous/non-component scopes, the handler now skips auth-state fallback if `ServerAuthenticationStateProvider` throws `InvalidOperationException`, so shared-token calls can proceed unauthenticated as intended.
+- Added regression test to assert the handler no longer throws and does not add `X-User-Id` when auth state is unavailable.
+
+**Next:** If needed, harden baseline test project by fixing `AuthServiceTests` constructor logger injection so focused test filters can run normally.
+
 ## 2026-04-12 - Project Initialized
 
 Created RecipeManager .NET Aspire project with harness skill system.

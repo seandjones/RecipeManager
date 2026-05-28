@@ -74,10 +74,40 @@ public class CurrentUserHeaderHandlerTests
         Assert.AreEqual(userId.ToString(), values.First());
     }
 
+    [TestMethod]
+    public async Task SendAsync_WhenAuthenticationStateUnavailable_DoesNotThrow_AndSkipsHeader()
+    {
+        var authenticationStateProvider = new ThrowingAuthenticationStateProvider();
+        var httpContextAccessor = new HttpContextAccessor();
+
+        HttpRequestMessage? capturedRequest = null;
+        var handler = new CurrentUserHeaderHandler(authenticationStateProvider, httpContextAccessor)
+        {
+            InnerHandler = new CaptureHandler(request =>
+            {
+                capturedRequest = request;
+                return new HttpResponseMessage(HttpStatusCode.OK);
+            })
+        };
+
+        using var client = new HttpClient(handler);
+
+        await client.GetAsync("https://example.test/api/ingredient-lists/shared/12345678-1234-1234-1234-123456789abc");
+
+        Assert.IsNotNull(capturedRequest);
+        Assert.IsFalse(capturedRequest!.Headers.Contains("X-User-Id"));
+    }
+
     private sealed class TestAuthenticationStateProvider(ClaimsPrincipal user) : AuthenticationStateProvider
     {
         public override Task<AuthenticationState> GetAuthenticationStateAsync()
             => Task.FromResult(new AuthenticationState(user));
+    }
+
+    private sealed class ThrowingAuthenticationStateProvider : AuthenticationStateProvider
+    {
+        public override Task<AuthenticationState> GetAuthenticationStateAsync()
+            => throw new InvalidOperationException("Outside Razor component scope");
     }
 
     private sealed class CaptureHandler(Func<HttpRequestMessage, HttpResponseMessage> handleRequest) : HttpMessageHandler

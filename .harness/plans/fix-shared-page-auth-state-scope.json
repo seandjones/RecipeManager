@@ -1,0 +1,26 @@
+{
+  "slug": "fix-shared-page-auth-state-scope",
+  "title": "Fix Shared Page Load for Anonymous Access",
+  "category": "bug",
+  "created_at": "2026-05-28T00:00:00Z",
+  "status": "complete",
+  "description": "Resolve shared ingredient-list page load failure caused by CurrentUserHeaderHandler requesting authentication state outside a Razor component scope.",
+  "verification_command": "dotnet build RecipeManager.Web/RecipeManager.Web.csproj",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Harden CurrentUserHeaderHandler for anonymous/non-component scopes",
+      "status": "complete",
+      "acceptance_criteria": [
+        "Shared ingredient list page no longer fails to load for anonymous viewer/editor share links",
+        "CurrentUserHeaderHandler does not throw when auth state is unavailable outside Razor component DI scope",
+        "Web project builds successfully"
+      ],
+      "notes": "Updated CurrentUserHeaderHandler to catch InvalidOperationException when auth state is unavailable outside Razor component scope, allowing anonymous shared-link requests to proceed without X-User-Id. Added regression test coverage in CurrentUserHeaderHandlerTests. Web build passes and manual browser validation confirms viewer/editor shared pages now load successfully."
+    }
+  ],
+  "dependencies": [
+    "Existing shared-token API endpoints and shared page route",
+    "AppHost orchestration for manual browser validation"
+  ]
+}

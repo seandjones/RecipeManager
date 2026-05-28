@@ -17,8 +17,16 @@ public sealed class CurrentUserHeaderHandler(
 
             if (!userId.HasValue)
             {
-                var authenticationState = await authenticationStateProvider.GetAuthenticationStateAsync();
-                userId = ResolveCurrentUserId(authenticationState.User);
+                try
+                {
+                    var authenticationState = await authenticationStateProvider.GetAuthenticationStateAsync();
+                    userId = ResolveCurrentUserId(authenticationState.User);
+                }
+                catch (InvalidOperationException)
+                {
+                    // Some anonymous/non-component request scopes do not expose auth state.
+                    // In those cases, continue without X-User-Id.
+                }
             }
 
             if (userId.HasValue)
