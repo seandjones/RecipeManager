@@ -15,7 +15,7 @@ COPY RecipeManager.Web/ RecipeManager.Web/
 COPY RecipeManager.ServiceDefaults/ RecipeManager.ServiceDefaults/
 
 RUN dotnet publish "RecipeManager.Web/RecipeManager.Web.csproj" \
-    -c Release -o /app/publish --no-restore
+    -c Release -o /app/publish
 
 FROM base AS final
 WORKDIR /app

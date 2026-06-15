@@ -522,3 +522,4 @@ RecipeManager.Web/wwwroot/css/*.css.map
 # *-FIX.md
 # LOCAL-*.md
 # DEMO-*.md
+.deploy.env
