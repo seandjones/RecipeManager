@@ -159,7 +159,7 @@ authGroup.MapPost("/verify-code", async (
 
     if (!result.Success)
     {
-        return Results.Unauthorized();
+        return Results.BadRequest(result);
     }
 
     return Results.Ok(result);
@@ -176,7 +176,7 @@ authGroup.MapPost("/logout", () =>
     // In this passwordless system, logout is handled client-side
     // The client should clear their session/cookie
     // This endpoint exists for consistency and future expansion
-    return Results.Ok(new { message = "Logout successful." });
+    return Results.Ok(new { success = true, message = "Logout successful." });
 })
 .WithName("Logout")
 .WithSummary("Logout")

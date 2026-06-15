@@ -38,8 +38,10 @@ public class AuthFlowIntegrationTests
                         .Where(s => s.ServiceType.FullName?.Contains("EntityFrameworkCore") == true ||
                                     s.ServiceType == typeof(AuthDbContext) ||
                                     s.ServiceType == typeof(RecipeDbContext) ||
+                                    s.ServiceType == typeof(IngredientListDbContext) ||
                                     s.ServiceType == typeof(DbContextOptions<AuthDbContext>) ||
-                                    s.ServiceType == typeof(DbContextOptions<RecipeDbContext>))
+                                    s.ServiceType == typeof(DbContextOptions<RecipeDbContext>) ||
+                                    s.ServiceType == typeof(DbContextOptions<IngredientListDbContext>))
                         .ToList();
 
                     foreach (var service in toRemove)
@@ -55,6 +57,11 @@ public class AuthFlowIntegrationTests
 
                     services.AddDbContext<RecipeDbContext>(options =>
                         options.UseInMemoryDatabase(inMemoryDbName + "_Recipe"),
+                        contextLifetime: ServiceLifetime.Scoped,
+                        optionsLifetime: ServiceLifetime.Scoped);
+
+                    services.AddDbContext<IngredientListDbContext>(options =>
+                        options.UseInMemoryDatabase(inMemoryDbName + "_IngredientList"),
                         contextLifetime: ServiceLifetime.Scoped,
                         optionsLifetime: ServiceLifetime.Scoped);
 
