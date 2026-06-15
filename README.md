@@ -282,6 +282,218 @@ The Aspire Dashboard provides:
 - **OpenTelemetry** - Industry-standard observability
 - **MSTest** - Unit and integration testing framework
 
+## 🐳 Deploying to Azure Container Apps
+
+The Aspire AppHost is a **local development tool only** and is not deployed. In production, `RecipeManager.ApiService` and `RecipeManager.Web` each run as a separate container in Azure Container Apps (ACA).
+
+### Prerequisites
+
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) (≥ 2.60)
+- Docker CLI
+- Azure subscription with Contributor access
+
+### Local Docker Smoke Test
+
+Verify the images build and run together before pushing to Azure:
+
+```bash
+docker compose build
+docker compose up
+```
+
+- Web: [http://localhost:5084](http://localhost:5084)
+- API: [http://localhost:5540](http://localhost:5540)
+- Health: [http://localhost:5540/health](http://localhost:5540/health)
+
+Email codes are logged to the console (no SendGrid key needed for local Docker testing).
+
+### Environment Variables Reference
+
+| Variable | Service | Description |
+|---|---|---|
+| `ASPNETCORE_ENVIRONMENT` | api, web | Set to `Production` |
+| `ASPNETCORE_FORWARDEDHEADERS_ENABLED` | web | Set to `true` — required for secure cookies behind ACA's TLS proxy |
+| `ConnectionStrings__recipedb` | api | PostgreSQL connection string |
+| `ConnectionStrings__cache` | web | Redis connection string (`hostname:6379`) |
+| `Authentication__UseConsoleEmailDelivery` | api | Set to `false` in production |
+| `SendGrid__ApiKey` | api | SendGrid API key (store as an ACA secret) |
+| `SendGrid__FromEmail` | api | Sender email address |
+| `SendGrid__FromName` | api | Sender display name |
+| `Services__apiservice__https__0` | web | Full HTTPS URL of the deployed API container app |
+
+### Deploying to Azure
+
+```bash
+# --- Variables ---
+RESOURCE_GROUP=rg-recipemanager-prod
+LOCATION=eastus
+ACR_NAME=acrrecipemanager        # must be globally unique
+ACA_ENV=cae-recipemanager-prod
+API_APP=recipemanager-api
+WEB_APP=recipemanager-web
+
+# --- Resource group ---
+az group create --name $RESOURCE_GROUP --location $LOCATION
+
+# --- Container registry ---
+az acr create --name $ACR_NAME --resource-group $RESOURCE_GROUP \
+  --sku Basic --admin-enabled true
+
+# --- Build and push images (runs in ACR, no local Docker daemon needed) ---
+az acr build --registry $ACR_NAME \
+  --image recipemanager-api:latest --file Dockerfile.api .
+
+az acr build --registry $ACR_NAME \
+  --image recipemanager-web:latest --file Dockerfile.web .
+
+# --- ACA environment ---
+az containerapp env create \
+  --name $ACA_ENV \
+  --resource-group $RESOURCE_GROUP \
+  --location $LOCATION
+
+# --- API container app (internal ingress — not publicly routable) ---
+az containerapp create \
+  --name $API_APP \
+  --resource-group $RESOURCE_GROUP \
+  --environment $ACA_ENV \
+  --image $ACR_NAME.azurecr.io/recipemanager-api:latest \
+  --registry-server $ACR_NAME.azurecr.io \
+  --ingress internal --target-port 8080 \
+  --min-replicas 1 --max-replicas 3 \
+  --secrets "sendgrid-api-key=<your-sendgrid-key>" \
+  --env-vars \
+    ASPNETCORE_ENVIRONMENT=Production \
+    "ConnectionStrings__recipedb=<your-postgres-connection-string>" \
+    "Authentication__UseConsoleEmailDelivery=false" \
+    "SendGrid__ApiKey=secretref:sendgrid-api-key" \
+    "SendGrid__FromEmail=noreply@yourdomain.com" \
+    "SendGrid__FromName=RecipeManager"
+
+# --- Get the API's internal FQDN ---
+API_FQDN=$(az containerapp show \
+  --name $API_APP \
+  --resource-group $RESOURCE_GROUP \
+  --query "properties.configuration.ingress.fqdn" -o tsv)
+
+# --- Web container app (external ingress — publicly accessible) ---
+az containerapp create \
+  --name $WEB_APP \
+  --resource-group $RESOURCE_GROUP \
+  --environment $ACA_ENV \
+  --image $ACR_NAME.azurecr.io/recipemanager-web:latest \
+  --registry-server $ACR_NAME.azurecr.io \
+  --ingress external --target-port 8080 \
+  --min-replicas 1 --max-replicas 3 \
+  --env-vars \
+    ASPNETCORE_ENVIRONMENT=Production \
+    ASPNETCORE_FORWARDEDHEADERS_ENABLED=true \
+    "ConnectionStrings__cache=<your-redis-connection-string>" \
+    "Services__apiservice__https__0=https://$API_FQDN"
+```
+
+### Database Migrations
+
+Migrations run automatically when the API container starts — no manual step needed. Ensure the PostgreSQL user in `ConnectionStrings__recipedb` has `CREATE TABLE` permissions on first deploy.
+
+### Health Probes
+
+ACA can be configured to use the built-in health endpoints as container probes:
+
+| Endpoint | Purpose |
+|---|---|
+| `/health` | Readiness — all checks must pass before traffic is routed |
+| `/alive` | Liveness — only "live"-tagged checks; failure triggers a restart |
+
+### Updating After Code Changes
+
+```bash
+az acr build --registry $ACR_NAME --image recipemanager-api:latest --file Dockerfile.api .
+az acr build --registry $ACR_NAME --image recipemanager-web:latest --file Dockerfile.web .
+
+az containerapp update --name $API_APP --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME.azurecr.io/recipemanager-api:latest
+
+az containerapp update --name $WEB_APP --resource-group $RESOURCE_GROUP \
+  --image $ACR_NAME.azurecr.io/recipemanager-web:latest
+```
+
+## ⚙️ CI/CD (GitHub Actions)
+
+The workflow at [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) runs on every push:
+
+| Event | Jobs run |
+|---|---|
+| Pull request → `main` | `test` only |
+| Push to `main` | `test` → `deploy` |
+
+**What `deploy` does:**
+1. Logs in to Azure via OIDC (no stored credentials)
+2. Builds and pushes both images to ACR (tagged with the commit SHA and `latest`)
+3. Updates each container app to the new image
+
+### One-time setup
+
+#### 1. Create a service principal and configure OIDC
+
+```bash
+# Create the service principal
+SP=$(az ad sp create-for-rbac --name "sp-recipemanager-github" --json-auth --output json)
+CLIENT_ID=$(echo $SP | jq -r .clientId)
+TENANT_ID=$(echo $SP | jq -r .tenantId)
+SUBSCRIPTION_ID=$(az account show --query id -o tsv)
+
+# Grant it Contributor on your resource group
+az role assignment create \
+  --assignee $CLIENT_ID \
+  --role Contributor \
+  --scope /subscriptions/$SUBSCRIPTION_ID/resourceGroups/$RESOURCE_GROUP
+
+# Add a federated credential so GitHub Actions can authenticate without a secret
+az ad app federated-credential create \
+  --id $CLIENT_ID \
+  --parameters '{
+    "name": "github-actions-main",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "subject": "repo:<your-github-org>/<your-repo-name>:ref:refs/heads/main",
+    "audiences": ["api://AzureADTokenExchange"]
+  }'
+```
+
+#### 2. Add GitHub secrets
+
+In your repository → **Settings → Secrets and variables → Actions → Secrets**, add:
+
+| Secret | Value |
+|---|---|
+| `AZURE_CLIENT_ID` | The `clientId` from the step above |
+| `AZURE_TENANT_ID` | The `tenantId` from the step above |
+| `AZURE_SUBSCRIPTION_ID` | Your Azure subscription ID |
+
+#### 3. Add GitHub variables
+
+In your repository → **Settings → Secrets and variables → Actions → Variables**, add:
+
+| Variable | Value |
+|---|---|
+| `ACR_NAME` | Your ACR name (e.g. `acrrecipemanager`) |
+| `RESOURCE_GROUP` | Your resource group (e.g. `rg-recipemanager-prod`) |
+| `API_APP_NAME` | Your API container app name (e.g. `recipemanager-api`) |
+| `WEB_APP_NAME` | Your web container app name (e.g. `recipemanager-web`) |
+
+#### 4. Grant the service principal ACR push access
+
+```bash
+ACR_ID=$(az acr show --name $ACR_NAME --resource-group $RESOURCE_GROUP --query id -o tsv)
+
+az role assignment create \
+  --assignee $CLIENT_ID \
+  --role AcrPush \
+  --scope $ACR_ID
+```
+
+Once these are in place, every merge to `main` automatically tests, builds, and deploys both services.
+
 ## 📚 Resources
 
 - [.NET Aspire Documentation](https://learn.microsoft.com/dotnet/aspire/)

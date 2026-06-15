@@ -1,0 +1,64 @@
+# Local Docker smoke test — not for production use.
+# Use `dotnet run --project RecipeManager.AppHost` for day-to-day development.
+#
+# Usage:
+#   docker compose build
+#   docker compose up
+#
+# Web:  http://localhost:5084
+# API:  http://localhost:5540
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: recipedb
+      POSTGRES_USER: recipeuser
+      POSTGRES_PASSWORD: recipe_dev_password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U recipeuser -d recipedb"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    ports:
+      - "5540:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ConnectionStrings__recipedb: "Host=postgres;Port=5432;Database=recipedb;Username=recipeuser;Password=recipe_dev_password"
+      Authentication__UseConsoleEmailDelivery: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+    ports:
+      - "5084:8080"
+    environment:
+      ASPNETCORE_ENVIRONMENT: Production
+      ASPNETCORE_FORWARDEDHEADERS_ENABLED: "true"
+      ConnectionStrings__cache: "redis:6379"
+      Services__apiservice__https__0: "http://api:8080"
+    depends_on:
+      - api

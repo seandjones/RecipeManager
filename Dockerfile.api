@@ -1,0 +1,24 @@
+FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base
+WORKDIR /app
+EXPOSE 8080
+
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+WORKDIR /src
+
+COPY ["RecipeManager.ApiService/RecipeManager.ApiService.csproj", "RecipeManager.ApiService/"]
+COPY ["RecipeManager.ServiceDefaults/RecipeManager.ServiceDefaults.csproj", "RecipeManager.ServiceDefaults/"]
+COPY ["Directory.Build.props", "."]
+
+RUN dotnet restore "RecipeManager.ApiService/RecipeManager.ApiService.csproj"
+
+COPY RecipeManager.ApiService/ RecipeManager.ApiService/
+COPY RecipeManager.ServiceDefaults/ RecipeManager.ServiceDefaults/
+
+RUN dotnet publish "RecipeManager.ApiService/RecipeManager.ApiService.csproj" \
+    -c Release -o /app/publish --no-restore
+
+FROM base AS final
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV ASPNETCORE_URLS=http://+:8080
+ENTRYPOINT ["dotnet", "RecipeManager.ApiService.dll"]

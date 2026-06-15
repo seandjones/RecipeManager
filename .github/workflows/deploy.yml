@@ -1,0 +1,88 @@
+name: Build, Test & Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  id-token: write   # required for OIDC Azure login
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Restore
+        run: dotnet restore RecipeManager.sln
+
+      - name: Build
+        run: dotnet build RecipeManager.sln --no-restore -c Release
+
+      - name: Test
+        run: dotnet test RecipeManager.Tests/RecipeManager.Tests.csproj --no-build -c Release --logger "trx;LogFileName=results.trx"
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: '**/TestResults/*.trx'
+
+  deploy:
+    name: Deploy
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Login to Azure (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Build and push API image
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image recipemanager-api:${{ github.sha }} \
+            --image recipemanager-api:latest \
+            --file Dockerfile.api \
+            .
+
+      - name: Build and push Web image
+        run: |
+          az acr build \
+            --registry ${{ vars.ACR_NAME }} \
+            --image recipemanager-web:${{ github.sha }} \
+            --image recipemanager-web:latest \
+            --file Dockerfile.web \
+            .
+
+      - name: Deploy API to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ vars.API_APP_NAME }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/recipemanager-api:${{ github.sha }}
+
+      - name: Deploy Web to Azure Container Apps
+        run: |
+          az containerapp update \
+            --name ${{ vars.WEB_APP_NAME }} \
+            --resource-group ${{ vars.RESOURCE_GROUP }} \
+            --image ${{ vars.ACR_NAME }}.azurecr.io/recipemanager-web:${{ github.sha }}
