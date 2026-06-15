@@ -8,6 +8,7 @@ public class WebTests
     private static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
     [TestMethod]
+    [Ignore("Requires full Aspire stack (Docker + Redis + Postgres) — not suitable for CI")]
     public async Task GetWebResourceRootReturnsOkStatusCode()
     {
         // Arrange

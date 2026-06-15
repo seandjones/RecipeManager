@@ -10,6 +10,11 @@ public static class IngredientParser
     /// <summary>
     /// Common cooking units recognized by the parser.
     /// </summary>
+    private static readonly HashSet<string> Articles = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "a", "an", "the", "some"
+    };
+
     private static readonly HashSet<string> CommonUnits = new(StringComparer.OrdinalIgnoreCase)
     {
         // Volume
@@ -96,6 +101,12 @@ public static class IngredientParser
             {
                 unit = tokens[0];
                 name = string.Join(" ", tokens.Skip(1)).Trim();
+            }
+            else if (tokens.Length > 2 && Articles.Contains(tokens[0]) && CommonUnits.Contains(tokens[1]))
+            {
+                // "a pinch of salt" -> (null, "pinch", "of salt")
+                unit = tokens[1];
+                name = string.Join(" ", tokens.Skip(2)).Trim();
             }
         }
 
